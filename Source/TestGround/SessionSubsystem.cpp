@@ -3,3 +3,10 @@
 
 #include "SessionSubsystem.h"
 
+USessionSubsystem::USessionSubsystem()
+{
+}
+
+void USessionSubsystem::CreateSession(int32 NumPublicConnections, bool IsLANMatch)
+{
+}
