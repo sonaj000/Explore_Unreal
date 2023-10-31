@@ -22,6 +22,15 @@ void UTGameInstance::Host()
 
 	UWorld* World = GetWorld();
 	if (!ensure(World != nullptr)) return;
+
+	try
+	{
+		World->ServerTravel("/Game/Levels/FirstMap"); // The server will call APlayerController::ClientTravel for all client players that are connected.
+	}
+	catch (const std::exception&)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("no travel"));
+	}
 }
 
 void UTGameInstance::Join(const FString& Address)
@@ -33,4 +42,6 @@ void UTGameInstance::Join(const FString& Address)
 
 	APlayerController* PlayerController = GetFirstLocalPlayerController();
 	if (!ensure(PlayerController != nullptr)) return;
+	UE_LOG(LogTemp, Warning, TEXT("trying joing"));
+	PlayerController->ClientTravel("/Game/Levels/FirstMap", ETravelType::TRAVEL_Absolute);
 }
