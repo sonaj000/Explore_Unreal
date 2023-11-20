@@ -15,6 +15,8 @@ struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
+class UMyCharacterMovementComponent;
+
 UCLASS(config=Game)
 class ATestGroundCharacter : public ACharacter
 {
@@ -44,9 +46,23 @@ class ATestGroundCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SprintAction;
+
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* TestAction;
+
 public:
-	ATestGroundCharacter();
+	ATestGroundCharacter(const FObjectInitializer& ObjectInitializer);
+
+	FCollisionQueryParams GetIgnoreCharacterParams() const;
 	
+	UFUNCTION(BlueprintPure) //only callable in bp
+	FORCEINLINE UMyCharacterMovementComponent* GetTGCCharacterMovement() const { return TGCMovementComponent; }
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement")
+	UMyCharacterMovementComponent* TGCMovementComponent;
 
 protected:
 
@@ -55,6 +71,24 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	virtual void Jump() override;
+
+	virtual void StopJumping() override;
+
+	virtual void OnLanded(const FHitResult& Hit);
+
+	UFUNCTION()
+	void Sprint();
+
+	UFUNCTION()
+	void StopSprinting();
+
+	UFUNCTION()
+	void TestFunction();
+
+	UPROPERTY()
+	bool bcanJump;
 			
 
 protected:

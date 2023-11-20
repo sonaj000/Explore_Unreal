@@ -10,13 +10,14 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "MyCharacterMovementComponent.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // ATestGroundCharacter
 
-ATestGroundCharacter::ATestGroundCharacter()
+ATestGroundCharacter::ATestGroundCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer.SetDefaultSubobjectClass<UMyCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -50,8 +51,25 @@ ATestGroundCharacter::ATestGroundCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	TGCMovementComponent = Cast<UMyCharacterMovementComponent>(GetCharacterMovement());
+	if (TGCMovementComponent != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("movement component is loaded"));
+	}
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+}
+
+FCollisionQueryParams ATestGroundCharacter::GetIgnoreCharacterParams() const
+{
+	FCollisionQueryParams Params;
+
+	TArray<AActor*> CharacterChildren;
+	GetAllChildActors(CharacterChildren);
+	Params.AddIgnoredActors(CharacterChildren);
+	Params.AddIgnoredActor(this);
+
+	return Params;
 }
 
 void ATestGroundCharacter::BeginPlay()
@@ -67,6 +85,18 @@ void ATestGroundCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+	bcanJump = true;
+
+	if (IsValid(TGCMovementComponent) && TGCMovementComponent != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("movement component is available at begin play"));
+	}
+	else
+	{
+		TGCMovementComponent = Cast<UMyCharacterMovementComponent>(GetCharacterMovement()); //for some reason this became null even though we set it in the constructor. 
+	}
+	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -78,14 +108,25 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 		
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopJumping);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::Move);
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::Look);
+
+		EnhancedInputComponent->BindAction(TestAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::TestFunction);
+
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Sprint);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopSprinting);
+
+		//FInputActionValue holdvalue = EnhancedInputComponent->GetBoundActionValue(TestAction);
+		//UE_LOG(LogTemp, Warning, TEXT("hold value is :%s"), *holdvalue.ToString());
+
+		//FInputActionValue holdvalue2 = EnhancedInputComponent->GetBoundActionValue(JumpAction);
+		//UE_LOG(LogTemp, Warning, TEXT("hold value is for jump :%s"), *holdvalue2.ToString());
 	}
 	else
 	{
@@ -127,4 +168,58 @@ void ATestGroundCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+void ATestGroundCharacter::Jump()
+{
+	UE_LOG(LogTemp, Warning, TEXT("you jump"));
+	if (bcanJump)
+	{
+		this->LaunchCharacter(FVector(0, 0, 750), false, true);
+		UE_LOG(LogTemp, Warning, TEXT("called super can jump"));
+		bcanJump = false;
+	}
+}
+
+void ATestGroundCharacter::StopJumping()
+{
+	if (!bcanJump)
+	{
+		Super::StopJumping();
+		bcanJump = true;
+	}
+}
+
+void ATestGroundCharacter::OnLanded(const FHitResult& Hit)
+{
+	UE_LOG(LogTemp, Warning, TEXT("landed"));
+	if (!bcanJump)
+	{
+		Super::StopJumping();
+		bcanJump = true;
+	}
+}
+
+void ATestGroundCharacter::Sprint()
+{
+	if (TGCMovementComponent)
+	{
+		TGCMovementComponent->SprintPressed();
+		UE_LOG(LogTemp, Warning, TEXT("you are sprinting"));
+	}
+
+}
+
+void ATestGroundCharacter::StopSprinting()
+{
+	UE_LOG(LogTemp, Warning, TEXT("you are not sprinting"));
+	if (TGCMovementComponent)
+	{
+		TGCMovementComponent->SprintReleased();
+	}
+}
+
+void ATestGroundCharacter::TestFunction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("TEST FINMCTOPM OS WPRLOMG"));
 }
