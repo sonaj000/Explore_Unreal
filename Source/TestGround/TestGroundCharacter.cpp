@@ -109,7 +109,6 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopJumping);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::Move);
@@ -172,7 +171,7 @@ void ATestGroundCharacter::Look(const FInputActionValue& Value)
 
 void ATestGroundCharacter::Jump()
 {
-	UE_LOG(LogTemp, Warning, TEXT("you jump"));
+	Super::Jump();
 	if (bcanJump)
 	{
 		this->LaunchCharacter(FVector(0, 0, 750), false, true);
@@ -181,16 +180,7 @@ void ATestGroundCharacter::Jump()
 	}
 }
 
-void ATestGroundCharacter::StopJumping()
-{
-	if (!bcanJump)
-	{
-		Super::StopJumping();
-		bcanJump = true;
-	}
-}
-
-void ATestGroundCharacter::OnLanded(const FHitResult& Hit)
+void ATestGroundCharacter::Landed(const FHitResult& Hit)
 {
 	UE_LOG(LogTemp, Warning, TEXT("landed"));
 	if (!bcanJump)

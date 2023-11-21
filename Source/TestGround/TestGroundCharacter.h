@@ -64,6 +64,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement")
 	UMyCharacterMovementComponent* TGCMovementComponent;
 
+	UPROPERTY()
+	bool bcanJump;
+
 protected:
 
 	/** Called for movement input */
@@ -74,9 +77,7 @@ protected:
 
 	virtual void Jump() override;
 
-	virtual void StopJumping() override;
-
-	virtual void OnLanded(const FHitResult& Hit);
+	virtual void Landed(const FHitResult& Hit) override;
 
 	UFUNCTION()
 	void Sprint();
@@ -86,9 +87,6 @@ protected:
 
 	UFUNCTION()
 	void TestFunction();
-
-	UPROPERTY()
-	bool bcanJump;
 			
 
 protected:
