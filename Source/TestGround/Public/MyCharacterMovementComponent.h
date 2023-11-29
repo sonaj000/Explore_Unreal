@@ -84,6 +84,9 @@ public:
 	UFUNCTION(BlueprintPure) 
 	bool IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const;
 
+	UFUNCTION(BlueprintPure)
+	uint8 GetCustomMovementMode() const;
+
 public:
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
 	virtual void UpdateCharacterStateAfterMovement(float DeltaSeconds) override;

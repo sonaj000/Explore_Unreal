@@ -341,6 +341,11 @@ void UMyCharacterMovementComponent::UpdateCharacterStateAfterMovement(float Delt
 {
 }
 
+uint8 UMyCharacterMovementComponent::GetCustomMovementMode() const
+{
+    return CustomMovementMode;
+}
+
 void UMyCharacterMovementComponent::SprintPressed()
 {
 

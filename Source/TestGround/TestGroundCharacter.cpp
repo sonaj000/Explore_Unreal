@@ -11,6 +11,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "MyCharacterMovementComponent.h"
+#include "TestGroundGameMode.h"
+#include "Kismet/GameplayStatics.h"
+#include "MySaveGame.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -96,7 +99,8 @@ void ATestGroundCharacter::BeginPlay()
 	{
 		TGCMovementComponent = Cast<UMyCharacterMovementComponent>(GetCharacterMovement()); //for some reason this became null even though we set it in the constructor. 
 	}
-	
+
+	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -121,11 +125,8 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Sprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopSprinting);
 
-		//FInputActionValue holdvalue = EnhancedInputComponent->GetBoundActionValue(TestAction);
-		//UE_LOG(LogTemp, Warning, TEXT("hold value is :%s"), *holdvalue.ToString());
-
-		//FInputActionValue holdvalue2 = EnhancedInputComponent->GetBoundActionValue(JumpAction);
-		//UE_LOG(LogTemp, Warning, TEXT("hold value is for jump :%s"), *holdvalue2.ToString());
+		EnhancedInputComponent->BindAction(SaveAction, ETriggerEvent::Started, this, &ATestGroundCharacter::SaveCharacterState);
+		EnhancedInputComponent->BindAction(LoadAction, ETriggerEvent::Started, this, &ATestGroundCharacter::LoadCharacterState);
 	}
 	else
 	{
@@ -212,4 +213,38 @@ void ATestGroundCharacter::StopSprinting()
 void ATestGroundCharacter::TestFunction()
 {
 	UE_LOG(LogTemp, Warning, TEXT("TEST FINMCTOPM OS WPRLOMG"));
+}
+
+void ATestGroundCharacter::SaveCharacterState()
+{
+	UE_LOG(LogTemp, Warning, TEXT("saving the position and things"));
+	//put check for if the movement mode is custom or not
+	if (TGCMovementComponent->IsMovementMode(EMovementMode::MOVE_Custom))
+	{
+		CurrentGameMode->SaveGameData(this->GetTransform(), this->GetActorLocation(), TGCMovementComponent->GetCustomMovementMode(), this->GetVelocity());
+	}
+	else
+	{
+		CurrentGameMode->SaveGameData(this->GetTransform(), this->GetActorLocation(), 0,TGCMovementComponent->GetLastUpdateVelocity());
+	}
+
+	//This is unncessary for our purposes but if you wanted to save the entire world of actors, need to add a vector of actors to the gamedata object. 
+
+}
+
+void ATestGroundCharacter::LoadCharacterState()
+{
+	UE_LOG(LogTemp, Warning, TEXT("loading the character state"));
+	UMySaveGame* holder = CurrentGameMode->LoadGameData();
+	if (holder != nullptr)
+	{
+		SetActorLocation(holder->PlayerLocation);
+		SetActorTransform(holder->Transform);
+		TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
+		TGCMovementComponent->Velocity = holder->Velocity;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("no save state"));
+	}
 }

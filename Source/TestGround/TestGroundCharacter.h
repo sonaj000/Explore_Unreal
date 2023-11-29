@@ -16,7 +16,7 @@ struct FInputActionValue;
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 class UMyCharacterMovementComponent;
-
+class ATestGroundGameMode;
 UCLASS(config=Game)
 class ATestGroundCharacter : public ACharacter
 {
@@ -53,6 +53,12 @@ class ATestGroundCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* TestAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SaveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* LoadAction;
+
 public:
 	ATestGroundCharacter(const FObjectInitializer& ObjectInitializer);
 
@@ -87,7 +93,16 @@ protected:
 
 	UFUNCTION()
 	void TestFunction();
-			
+private:
+
+	UFUNCTION()
+	void SaveCharacterState();
+
+	UFUNCTION()
+	void LoadCharacterState();
+
+	UPROPERTY()
+	ATestGroundGameMode* CurrentGameMode;
 
 protected:
 	// APawn interface

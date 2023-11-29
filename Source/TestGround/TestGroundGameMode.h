@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Public/MyCharacterMovementComponent.h"
 #include "TestGroundGameMode.generated.h"
 
 class FSQLiteDatabase;
+class UMySaveGame;
 UCLASS(minimalapi)
 class ATestGroundGameMode : public AGameModeBase
 {
@@ -23,6 +25,19 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	virtual void Logout(AController* Exiting) override;
+	//we can save the game state to a database. wowwwww
+
+	UPROPERTY()
+	UMySaveGame* GameData;
+
+	FString SaveSlot = "GameData";
+
+	UFUNCTION()
+	void SaveGameData(FTransform PlayerTransform, FVector PlayerLocation,uint8 CurrentMode, FVector Velocity);
+
+	UFUNCTION()
+	UMySaveGame* LoadGameData();
+
 };
 
 
