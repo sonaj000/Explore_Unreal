@@ -9,6 +9,7 @@
 
 class FSQLiteDatabase;
 class UMySaveGame;
+class ATestGroundCharacter;
 UCLASS(minimalapi)
 class ATestGroundGameMode : public AGameModeBase
 {
@@ -27,16 +28,15 @@ public:
 	virtual void Logout(AController* Exiting) override;
 	//we can save the game state to a database. wowwwww
 
+public:
+
+
+	UFUNCTION()
+	virtual void Tick(float DeltaSeconds) override;
+
 	UPROPERTY()
-	UMySaveGame* GameData;
+	ATestGroundCharacter* MCharacter;
 
-	FString SaveSlot = "GameData";
-
-	UFUNCTION()
-	void SaveGameData(FTransform PlayerTransform, FVector PlayerLocation,uint8 CurrentMode, FVector Velocity);
-
-	UFUNCTION()
-	UMySaveGame* LoadGameData();
 
 };
 
