@@ -17,6 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 class UMyCharacterMovementComponent;
 class ATestGroundGameMode;
+class UMySaveGame;
 UCLASS(config=Game)
 class ATestGroundCharacter : public ACharacter
 {
@@ -53,12 +54,6 @@ class ATestGroundCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* TestAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SaveAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LoadAction;
-
 public:
 	ATestGroundCharacter(const FObjectInitializer& ObjectInitializer);
 
@@ -93,13 +88,16 @@ protected:
 
 	UFUNCTION()
 	void TestFunction();
+
+	UFUNCTION()
+	void SpawnDebugBoxForCell(FString cell);
 private:
 
 	UFUNCTION()
-	void SaveCharacterState();
+	UMySaveGame* GetStateAsSave();
 
 	UFUNCTION()
-	void LoadCharacterState();
+	void RestoreStateFromSave(UMySaveGame* Save);
 
 	UPROPERTY()
 	ATestGroundGameMode* CurrentGameMode;
@@ -111,10 +109,46 @@ protected:
 	// To add mapping context
 	virtual void BeginPlay();
 
+	UFUNCTION()
+	FString GetCellString();
+public:
+
+	TMap<FString, TArray<UMySaveGame*>>StatesForCells;
+
+	void RememberCurrentState();
+
+	void FastTick();
+
+	void SlowTick();
+
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	UFUNCTION()
+	virtual void Tick(float DeltaSeconds) override;
+
+protected: //FSM stuff
+
+	UFUNCTION()
+	void RandomSeed();
+
+	UFUNCTION()
+	void RandomMovement();
+
+	UPROPERTY()
+	int RandSeed = 0;
+
+	void NewSeed();
+	bool bCanSeed = false;
+
+	UPROPERTY()
+	bool bCanGo = false;
+
+	UPROPERTY()
+	bool bCanRun = false;
+
 };
 

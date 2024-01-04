@@ -29,6 +29,7 @@ void ATestGroundGameMode::InitGame(const FString& MapName, const FString& Option
 
 	Super::InitGame(MapName, Options, ErrorMessage);
 	UE_LOG(LogTemp, Warning, TEXT("init game works"));
+
 }
 
 void ATestGroundGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -42,6 +43,8 @@ void ATestGroundGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	UE_LOG(LogTemp, Warning, TEXT("postlogin works"));
 	Super::PostLogin(NewPlayer);
+
+	MCharacter = Cast<ATestGroundCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ATestGroundCharacter::StaticClass()));
 }
 
 void ATestGroundGameMode::Logout(AController* Exiting)
@@ -55,40 +58,8 @@ void ATestGroundGameMode::Logout(AController* Exiting)
 	}
 }
 
-void ATestGroundGameMode::SaveGameData(FTransform PlayerTransform, FVector PlayerLocation, uint8 CurrentMode, FVector Velocity)
+
+void ATestGroundGameMode::Tick(float DeltaSeconds)
 {
-	if (!GameData)
-	{
-		GameData = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
 
-		GameData->Transform = PlayerTransform;
-		GameData->PlayerLocation = PlayerLocation;
-		GameData->CurrentMode = CurrentMode;
-		GameData->Velocity = Velocity;
-
-		UGameplayStatics::SaveGameToSlot(GameData, SaveSlot, 0);
-
-	}
-	else
-	{
-		GameData->Transform = PlayerTransform;
-		GameData->PlayerLocation = PlayerLocation;
-		GameData->CurrentMode = CurrentMode;
-		GameData->Velocity = Velocity;
-
-		UGameplayStatics::SaveGameToSlot(GameData, SaveSlot, 0);
-	}
-
-}
-
-UMySaveGame* ATestGroundGameMode::LoadGameData()
-{
-	if (GameData)
-	{
-		return GameData;
-	}
-	else
-	{
-		return nullptr;
-	}
 }

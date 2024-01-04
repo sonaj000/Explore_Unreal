@@ -108,14 +108,13 @@ public:
 
 	virtual bool DoJump(bool bReplayingMoves) override;
 
+	UFUNCTION(BlueprintPure)
+	bool isWallRunning() const { return IsCustomMovementMode(CMOVE_WallRun); }
 protected:
 //Wall Run
 	bool TryWallRun();
 
 	void PhysWallRun(float deltaTime, int32 Iterations);
-
-	UFUNCTION(BlueprintPure)
-	bool isWallRunning() const { return IsCustomMovementMode(CMOVE_WallRun); }
 
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
 

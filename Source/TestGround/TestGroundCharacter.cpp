@@ -14,6 +14,10 @@
 #include "TestGroundGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "MySaveGame.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Misc/DefaultValueHelper.h"
+#include "MySaveGame.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -101,6 +105,133 @@ void ATestGroundCharacter::BeginPlay()
 	}
 
 	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+
+	FTimerHandle FastTimer;
+	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.25f, true);
+
+	//FTimerHandle SlowTimer;
+	//GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 2.0f, true); 
+
+}
+
+FString ATestGroundCharacter::GetCellString()
+{
+	int x = GetActorLocation().X / 100;
+	int y = GetActorLocation().Y / 100;
+	int z = GetActorLocation().Z / 100;
+
+	int vx = GetVelocity().X / 100;
+	int vy = GetVelocity().Y / 100;
+	int vz = GetVelocity().Z / 100;
+
+	int p =  GetActorRotation().Pitch; 
+	int yaw = GetActorRotation().Yaw; //only yaw really changes. 
+	int r = GetActorRotation().Roll;
+
+	int isWall = TGCMovementComponent->isWallRunning();
+
+	return FString::Printf(TEXT("%d,%d,%d,"), x, y, z); //removed rotation for better visibility of squares
+}
+
+void ATestGroundCharacter::RememberCurrentState()
+{
+	FString key = GetCellString();
+	UMySaveGame* value = GetStateAsSave();
+	if (!StatesForCells.Contains(key))
+	{
+		StatesForCells.Add(key,TArray<UMySaveGame*>());
+	}
+	StatesForCells[key].Add(value);
+
+}
+
+void ATestGroundCharacter::FastTick()
+{
+	RememberCurrentState();
+}
+
+void ATestGroundCharacter::SlowTick()
+{
+	//pick a random cell, then a random state within the cell, and then restore it. 
+	TArray<FString>KeyArray;
+	StatesForCells.GetKeys(KeyArray);
+	FString selectedCell = KeyArray[FMath::RandRange(0, StatesForCells.Num() - 1)];
+	TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
+	UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
+	RestoreStateFromSave(selectedState);
+
+	//print cells statistics report
+	UE_LOG(LogTemp, Warning, TEXT("///"));
+	for (auto pair : StatesForCells)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s, %d"), *pair.Key, pair.Value.Num());
+	}
+}
+
+void ATestGroundCharacter::SpawnDebugBoxForCell(FString cell)
+{
+	TArray<FString> StringComponents;
+
+	// Parse the string into an array of individual components based on commas
+	cell.ParseIntoArray(StringComponents, TEXT(","), true);
+
+	int32 cx = FCString::Atoi(*StringComponents[0])* 100 ;
+	int32 cy = FCString::Atoi(*StringComponents[1])* 100 ;
+	int32 cz = FCString::Atoi(*StringComponents[2])* 100 + 50;
+
+	DrawDebugBox(GetWorld(), FVector(cx,cy,cz), FVector(50.0f, 50.0f, 50.0f), FColor::Black, true, 3.0f, 0, 1.0f);
+	
+}
+
+void ATestGroundCharacter::Tick(float DeltaSeconds)
+{
+	FString cell = GetCellString();
+	if (!StatesForCells.Contains(cell))
+	{
+		RememberCurrentState();
+		//UE_LOG(LogTemp, Warning, TEXT("%s"), *cell);
+		SpawnDebugBoxForCell(cell);
+	}
+	if (bCanGo)
+	{
+		RandomSeed();
+	}
+	//RandomMovement();
+}
+
+void ATestGroundCharacter::RandomSeed()
+{
+	RandSeed = UKismetMathLibrary::RandomInteger(5); //random number between 0-5
+	bCanGo = false;
+}
+
+void ATestGroundCharacter::RandomMovement()
+{
+	switch (RandSeed)
+	{
+	case 0:
+		AddMovementInput(FVector(0.0f, -1.0, 0.0f));
+		break;
+	case 1:
+		AddMovementInput(FVector(0.0f, 1.0, 0.0f)); //
+		break;
+	case 2:
+		AddMovementInput(FVector(1.0f, 0.0, 0.0f)); //
+		break;
+	case 3:
+		AddMovementInput(FVector(-1.0f, 0.0, 0.0f)); //
+		break;
+	case 4:
+		Jump();
+		break;
+	default:
+		break;
+	}
+}
+
+void ATestGroundCharacter::NewSeed()
+{
+	bCanSeed = true;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -125,8 +256,6 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Sprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopSprinting);
 
-		EnhancedInputComponent->BindAction(SaveAction, ETriggerEvent::Started, this, &ATestGroundCharacter::SaveCharacterState);
-		EnhancedInputComponent->BindAction(LoadAction, ETriggerEvent::Started, this, &ATestGroundCharacter::LoadCharacterState);
 	}
 	else
 	{
@@ -154,6 +283,7 @@ void ATestGroundCharacter::Move(const FInputActionValue& Value)
 		// add movement 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
+
 	}
 }
 
@@ -212,39 +342,30 @@ void ATestGroundCharacter::StopSprinting()
 
 void ATestGroundCharacter::TestFunction()
 {
-	UE_LOG(LogTemp, Warning, TEXT("TEST FINMCTOPM OS WPRLOMG"));
-}
-
-void ATestGroundCharacter::SaveCharacterState()
-{
-	UE_LOG(LogTemp, Warning, TEXT("saving the position and things"));
-	//put check for if the movement mode is custom or not
-	if (TGCMovementComponent->IsMovementMode(EMovementMode::MOVE_Custom))
-	{
-		CurrentGameMode->SaveGameData(this->GetTransform(), this->GetActorLocation(), TGCMovementComponent->GetCustomMovementMode(), this->GetVelocity());
-	}
-	else
-	{
-		CurrentGameMode->SaveGameData(this->GetTransform(), this->GetActorLocation(), 0,TGCMovementComponent->GetLastUpdateVelocity());
-	}
-
-	//This is unncessary for our purposes but if you wanted to save the entire world of actors, need to add a vector of actors to the gamedata object. 
+	UE_LOG(LogTemp, Warning, TEXT("TEST FUNCTION IS WORKING"));
+	const FInputActionValue test(FVector(1.0, 1.0f,1.0f));
+	//Jump();
+	
+	bCanGo = true;
 
 }
 
-void ATestGroundCharacter::LoadCharacterState()
+
+UMySaveGame* ATestGroundCharacter::GetStateAsSave()
 {
-	UE_LOG(LogTemp, Warning, TEXT("loading the character state"));
-	UMySaveGame* holder = CurrentGameMode->LoadGameData();
-	if (holder != nullptr)
-	{
-		SetActorLocation(holder->PlayerLocation);
-		SetActorTransform(holder->Transform);
-		TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
-		TGCMovementComponent->Velocity = holder->Velocity;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("no save state"));
-	}
+	UMySaveGame* GameData = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
+	GameData->Transform = GetTransform();
+	GameData->PlayerLocation = GetActorLocation();
+	GameData->CurrentMode = TGCMovementComponent->GetCustomMovementMode();
+	GameData->Velocity = GetVelocity();
+
+	return GameData;
+}
+
+void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
+{
+	SetActorLocation(Save->PlayerLocation);
+	SetActorTransform(Save->Transform);
+	TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
+	TGCMovementComponent->Velocity = Save->Velocity;
 }

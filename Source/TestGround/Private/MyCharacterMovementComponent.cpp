@@ -40,7 +40,7 @@ void UMyCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const 
 
 bool UMyCharacterMovementComponent::IsMovingOnGround() const
 {
-    return false;
+    return Super::IsMovingOnGround();
 }
 
 bool UMyCharacterMovementComponent::CanCrouchInCurrentState() const
