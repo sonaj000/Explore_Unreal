@@ -111,9 +111,14 @@ protected:
 
 	UFUNCTION()
 	FString GetCellString();
+
+	UFUNCTION()
+	int CellScoreCalculator(FString SelectedCell);
 public:
 
 	TMap<FString, TArray<UMySaveGame*>>StatesForCells;
+
+	TMap<FString, TArray<int>>CellAttributes;
 
 	void RememberCurrentState();
 

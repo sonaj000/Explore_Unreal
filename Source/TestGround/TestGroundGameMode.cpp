@@ -16,6 +16,9 @@ ATestGroundGameMode::ATestGroundGameMode()
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
 	Db = nullptr;
+	//this two lines help the gamemmode actually tick otherwise no work. 
+	PrimaryActorTick.bStartWithTickEnabled = true;
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void ATestGroundGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -45,6 +48,10 @@ void ATestGroundGameMode::PostLogin(APlayerController* NewPlayer)
 	Super::PostLogin(NewPlayer);
 
 	MCharacter = Cast<ATestGroundCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ATestGroundCharacter::StaticClass()));
+	if (!MCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("post login set the character to a new one "));
+	}
 }
 
 void ATestGroundGameMode::Logout(AController* Exiting)
@@ -58,8 +65,15 @@ void ATestGroundGameMode::Logout(AController* Exiting)
 	}
 }
 
-
 void ATestGroundGameMode::Tick(float DeltaSeconds)
 {
-
+	Super::Tick(DeltaSeconds);
 }
+
+void ATestGroundGameMode::StartPlay()
+{
+	Super::StartPlay();
+	UE_LOG(LogTemp, Warning, TEXT("called beginplayt on all actors"));
+}
+
+

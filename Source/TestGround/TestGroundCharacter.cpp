@@ -65,6 +65,8 @@ ATestGroundCharacter::ATestGroundCharacter(const FObjectInitializer& ObjectIniti
 	}
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	RandSeed = 0;
 }
 
 FCollisionQueryParams ATestGroundCharacter::GetIgnoreCharacterParams() const
@@ -106,11 +108,17 @@ void ATestGroundCharacter::BeginPlay()
 
 	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 
+	//timer for the fast tick which is the state saving
 	FTimerHandle FastTimer;
 	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.25f, true);
 
+	//timer for the slow tick which teleports the character to a random place
 	//FTimerHandle SlowTimer;
-	//GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 2.0f, true); 
+	//GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 3.0f, true); 
+
+	//timer for random input
+	//FTimerHandle RandomTimer;
+	//GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 1.0f, true);
 
 }
 
@@ -131,6 +139,11 @@ FString ATestGroundCharacter::GetCellString()
 	int isWall = TGCMovementComponent->isWallRunning();
 
 	return FString::Printf(TEXT("%d,%d,%d,"), x, y, z); //removed rotation for better visibility of squares
+}
+
+int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
+{
+	return 0;
 }
 
 void ATestGroundCharacter::RememberCurrentState()
@@ -196,12 +209,13 @@ void ATestGroundCharacter::Tick(float DeltaSeconds)
 	{
 		RandomSeed();
 	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorLocation().ToString());
 	//RandomMovement();
 }
 
 void ATestGroundCharacter::RandomSeed()
 {
-	RandSeed = UKismetMathLibrary::RandomInteger(5); //random number between 0-5
+	RandSeed = UKismetMathLibrary::RandomInteger(8); //random number between 0-7
 	bCanGo = false;
 }
 
@@ -222,9 +236,20 @@ void ATestGroundCharacter::RandomMovement()
 		AddMovementInput(FVector(-1.0f, 0.0, 0.0f)); //
 		break;
 	case 4:
+		AddMovementInput(FVector(0.0f, -1.0, 0.0f));
 		Jump();
 		break;
-	default:
+	case 5:
+		AddMovementInput(FVector(0.0f, 1.0, 0.0f));
+		Jump();
+		break;
+	case 6:
+		AddMovementInput(FVector(1.0f, 0.0, 0.0f)); //
+		Jump();
+		break;
+	case 7:
+		AddMovementInput(FVector(-1.0f, 0.0, 0.0f)); //
+		Jump();
 		break;
 	}
 }
@@ -251,7 +276,7 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::Look);
 
-		EnhancedInputComponent->BindAction(TestAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::TestFunction);
+		EnhancedInputComponent->BindAction(TestAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::SlowTick);
 
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Sprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopSprinting);

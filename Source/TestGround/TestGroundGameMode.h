@@ -29,14 +29,13 @@ public:
 	//we can save the game state to a database. wowwwww
 
 public:
-
-
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY()
 	ATestGroundCharacter* MCharacter;
 
+	virtual void StartPlay() override;
 
 };
 
