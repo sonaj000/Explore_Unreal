@@ -20,7 +20,6 @@ APressurePlate::APressurePlate()
 
 	HitBox->OnComponentBeginOverlap.AddDynamic(this, &APressurePlate::OnComponentBeginOverlap);
 
-	bIsPressed = false;
 
 	ZDistance = 500;
 	TagName = "Bridge0";
@@ -35,18 +34,8 @@ void APressurePlate::OnComponentBeginOverlap(UPrimitiveComponent* OverlappedComp
 {
 	if (OtherActor && OtherActor != this && OtherActor->IsA(APawn::StaticClass()) && !bIsPressed)
 	{
-		if (Bridge == nullptr)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-			Bridge = GetWorld()->SpawnActor<AActor>(BridgeActor, this->GetActorLocation() +	GetActorForwardVector()* ZDistance, FRotator::ZeroRotator, SpawnParams);
-			bIsPressed = true;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("there is no valid bridge pointer"));
-		}
+		bIsPressed = true;
+		UE_LOG(LogTemp, Warning, TEXT("pressed the PRESSURE PLATE"));
 	}
 }
 
@@ -54,12 +43,31 @@ void APressurePlate::OnComponentBeginOverlap(UPrimitiveComponent* OverlappedComp
 void APressurePlate::BeginPlay()
 {
 	Super::BeginPlay();
+
+	bIsPressed = false;
+
+	if (Bridge == nullptr)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		Bridge = GetWorld()->SpawnActor<AActor>(BridgeActor, this->GetActorLocation() + GetActorForwardVector() * ZDistance, FRotator::ZeroRotator, SpawnParams);
+		Bridge->SetActorHiddenInGame(true);
+		Bridge->SetActorEnableCollision(false);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is no valid bridge pointer"));
+	}
 }
 
 // Called every frame
 void APressurePlate::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	//UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (bIsPressed ? TEXT("true") : TEXT("false")));
+	Bridge->SetActorHiddenInGame(!bIsPressed);
+	Bridge->SetActorEnableCollision(bIsPressed);
 
 }
 

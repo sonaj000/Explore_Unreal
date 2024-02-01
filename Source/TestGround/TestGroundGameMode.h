@@ -5,11 +5,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "Public/MyCharacterMovementComponent.h"
+#include "Engine/DataTable.h"
 #include "TestGroundGameMode.generated.h"
 
 class FSQLiteDatabase;
 class UMySaveGame;
 class ATestGroundCharacter;
+
+
+class UDataTable;
+
 UCLASS(minimalapi)
 class ATestGroundGameMode : public AGameModeBase
 {
@@ -28,12 +33,18 @@ public:
 	virtual void Logout(AController* Exiting) override;
 	//we can save the game state to a database. wowwwww
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data Analysis")
+	UDataTable* PlayerTable;
+
 public:
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY()
 	ATestGroundCharacter* MCharacter;
+
+	UFUNCTION()
+	void ExportData();
 
 	virtual void StartPlay() override;
 

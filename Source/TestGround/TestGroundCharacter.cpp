@@ -18,6 +18,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Misc/DefaultValueHelper.h"
 #include "MySaveGame.h"
+#include "Core/PressurePlate.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -113,13 +114,18 @@ void ATestGroundCharacter::BeginPlay()
 	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.25f, true);
 
 	//timer for the slow tick which teleports the character to a random place
-	//FTimerHandle SlowTimer;
-	//GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 3.0f, true); 
+	FTimerHandle SlowTimer;
+	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 3.0f, true); 
 
 	//timer for random input
-	//FTimerHandle RandomTimer;
-	//GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 1.0f, true);
+	FTimerHandle RandomTimer;
+	GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 1.0f, true);
 
+	gamebridge = Cast<APressurePlate>(UGameplayStatics::GetActorOfClass(GetWorld(), APressurePlate::StaticClass()));
+
+	nameCounter = 0;
+	
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f); //make things run 10x faster. 
 }
 
 FString ATestGroundCharacter::GetCellString()
@@ -132,13 +138,46 @@ FString ATestGroundCharacter::GetCellString()
 	int vy = GetVelocity().Y / 100;
 	int vz = GetVelocity().Z / 100;
 
-	int p =  GetActorRotation().Pitch; 
-	int yaw = GetActorRotation().Yaw; //only yaw really changes. 
-	int r = GetActorRotation().Roll;
+	int p =  GetActorRotation().Pitch / 45; 
+	int yaw = GetActorRotation().Yaw / 45; //only yaw really changes. 
+	int r = GetActorRotation().Roll / 45;
 
 	int isWall = TGCMovementComponent->isWallRunning();
 
-	return FString::Printf(TEXT("%d,%d,%d,"), x, y, z); //removed rotation for better visibility of squares
+	bool isBridgeOut = gamebridge->bIsPressed;
+
+	FString cellstring = FString::Printf(TEXT("%d,%d,%d,%d,%d,%d,%d,%d,%d,%s"), x, y, z, vx, vy, vz,p, yaw, r,(isBridgeOut ? TEXT("true") : TEXT("false")));
+	//UE_LOG(LogTemp, Warning, TEXT( "%s"), *cellstring);
+	
+	FPlayerStateTable PlayerStats;
+	FName(TEXT("Player State"));
+
+	if (CurrentGameMode->PlayerTable != nullptr)
+	{
+
+		nameCounter += 1;
+		FString NewNumber = FString::FromInt(nameCounter);
+		FString NewName = TEXT("Player State");
+		NewName.Append(NewNumber);
+
+		FName RowName = FName(*NewName);
+
+		PlayerStats.X = x;
+		PlayerStats.Y = y;
+		PlayerStats.Z = z;
+		PlayerStats.VX = vx;
+		PlayerStats.VY = vy;
+		PlayerStats.VZ = vz;
+		PlayerStats.pitch = p;
+		PlayerStats.yaw = yaw;
+		PlayerStats.roll = r;
+		PlayerStats.bisBridgeOut = isBridgeOut;
+
+		CurrentGameMode->PlayerTable->AddRow(RowName, PlayerStats);
+		//UE_LOG(LogTemp, Warning, TEXT("///data is logged"));
+	}
+
+	return cellstring; //removed rotation for better visibility of squares
 }
 
 int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
@@ -160,6 +199,12 @@ void ATestGroundCharacter::RememberCurrentState()
 
 void ATestGroundCharacter::FastTick()
 {
+	if (GetActorLocation().Z <= 0.0f)
+	{
+		SlowTick();
+		CurrentGameMode->ExportData();
+		GetGameInstance()->Shutdown();//just for cvs data saving purposes. 
+	}
 	RememberCurrentState();
 }
 
@@ -169,16 +214,20 @@ void ATestGroundCharacter::SlowTick()
 	TArray<FString>KeyArray;
 	StatesForCells.GetKeys(KeyArray);
 	FString selectedCell = KeyArray[FMath::RandRange(0, StatesForCells.Num() - 1)];
+	//UE_LOG(LogTemp, Warning, TEXT("/// selected cell: %s"), *selectedCell);
 	TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
 	UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
+	
+
 	RestoreStateFromSave(selectedState);
 
 	//print cells statistics report
 	UE_LOG(LogTemp, Warning, TEXT("///"));
 	for (auto pair : StatesForCells)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s, %d"), *pair.Key, pair.Value.Num());
+		//UE_LOG(LogTemp, Warning, TEXT("cellstring : %s, num states in cell : %d"), *pair.Key, pair.Value.Num());
 	}
+
 }
 
 void ATestGroundCharacter::SpawnDebugBoxForCell(FString cell)
@@ -209,8 +258,8 @@ void ATestGroundCharacter::Tick(float DeltaSeconds)
 	{
 		RandomSeed();
 	}
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetActorLocation().ToString());
-	//RandomMovement();
+	//GetCellString();
+	RandomMovement();
 }
 
 void ATestGroundCharacter::RandomSeed()
@@ -383,6 +432,7 @@ UMySaveGame* ATestGroundCharacter::GetStateAsSave()
 	GameData->PlayerLocation = GetActorLocation();
 	GameData->CurrentMode = TGCMovementComponent->GetCustomMovementMode();
 	GameData->Velocity = GetVelocity();
+	GameData->bBridgeVisible = gamebridge->bIsPressed;
 
 	return GameData;
 }
@@ -393,4 +443,10 @@ void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
 	SetActorTransform(Save->Transform);
 	TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
 	TGCMovementComponent->Velocity = Save->Velocity;
+	gamebridge->bIsPressed = Save->bBridgeVisible;
+	gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
+	gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
+
+	UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (gamebridge->bIsPressed ? TEXT("true") : TEXT("false")));
+
 }

@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "SQLiteDatabase.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/FileHelper.h"
 #include "MySaveGame.h"
 
 ATestGroundGameMode::ATestGroundGameMode()
@@ -52,6 +53,7 @@ void ATestGroundGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("post login set the character to a new one "));
 	}
+	PlayerTable->EmptyTable();
 }
 
 void ATestGroundGameMode::Logout(AController* Exiting)
@@ -62,12 +64,44 @@ void ATestGroundGameMode::Logout(AController* Exiting)
 		Db->Close();
 		delete Db;
 		UE_LOG(LogTemp, Warning, TEXT("closed db"));
+		FString MyFilePath = FPaths::ProjectContentDir(); //same thing as above delete later
+		MyFilePath.Append(TEXT("TestData.csv")); //change this out to whatever csv file you are using for the data. 
+
+		ExportData();
+		//PlayerTable->EmptyTable(); //empties data for now, but we need to include export. 
 	}
 }
 
 void ATestGroundGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+}
+
+void ATestGroundGameMode::ExportData()
+{
+	FString MyFilePath = FPaths::ProjectContentDir(); //same thing as above delete later
+	MyFilePath.Append(TEXT("TestData2.csv")); //change this out to whatever csv file you are using for the data. 
+	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile(); 
+
+	if (FileManager.FileExists(*MyFilePath)) //check if the file exists
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File found!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File not found!"));
+	}
+
+	FString TableString;
+
+
+	if (PlayerTable != nullptr)
+	{
+		TableString = PlayerTable->GetTableAsCSV();
+		FFileHelper::SaveStringToFile(TableString, *MyFilePath); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
+		UE_LOG(LogTemp, Warning, TEXT("we loaded correctly"));
+	}
+	
 }
 
 void ATestGroundGameMode::StartPlay()

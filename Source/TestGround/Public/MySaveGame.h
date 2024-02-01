@@ -31,4 +31,7 @@ public:
 	UPROPERTY()
 	FVector Velocity;
 
+	UPROPERTY()
+	bool bBridgeVisible;
+
 };

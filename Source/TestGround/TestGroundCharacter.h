@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Engine/DataTable.h"
+
 #include "TestGroundCharacter.generated.h"
 
 class USpringArmComponent;
@@ -18,6 +20,45 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 class UMyCharacterMovementComponent;
 class ATestGroundGameMode;
 class UMySaveGame;
+class APressurePlate;
+
+USTRUCT(BlueprintType)
+struct FPlayerStateTable : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int X;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Y;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Z;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int VX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int VY;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int VZ;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int pitch;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int yaw;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int roll;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bisBridgeOut;
+};
+
+
 UCLASS(config=Game)
 class ATestGroundCharacter : public ACharacter
 {
@@ -91,6 +132,9 @@ protected:
 
 	UFUNCTION()
 	void SpawnDebugBoxForCell(FString cell);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) //counter for FNAME purposes for adding row name
+		int nameCounter = 0;
 private:
 
 	UFUNCTION()
@@ -114,6 +158,10 @@ protected:
 
 	UFUNCTION()
 	int CellScoreCalculator(FString SelectedCell);
+
+	UPROPERTY()
+	APressurePlate* gamebridge;
+
 public:
 
 	TMap<FString, TArray<UMySaveGame*>>StatesForCells;
