@@ -111,15 +111,15 @@ void ATestGroundCharacter::BeginPlay()
 
 	//timer for the fast tick which is the state saving
 	FTimerHandle FastTimer;
-	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.25f, true);
+	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.1f, true);
 
 	//timer for the slow tick which teleports the character to a random place
 	FTimerHandle SlowTimer;
-	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 3.0f, true); 
+	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 10.0f, true); 
 
 	//timer for random input
 	FTimerHandle RandomTimer;
-	GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 1.0f, true);
+	GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 2.0f, true);
 
 	gamebridge = Cast<APressurePlate>(UGameplayStatics::GetActorOfClass(GetWorld(), APressurePlate::StaticClass()));
 
@@ -146,36 +146,20 @@ FString ATestGroundCharacter::GetCellString()
 
 	bool isBridgeOut = gamebridge->bIsPressed;
 
+	if (z < 0)
+	{
+		z = 20;
+	}
+
+	StatHolder.Add(x);
+	StatHolder.Add(y);
+	StatHolder.Add(z);
+	StatHolder.Add(vx);
+	StatHolder.Add(vy);
+	StatHolder.Add(vz);
+
 	FString cellstring = FString::Printf(TEXT("%d,%d,%d,%d,%d,%d,%d,%d,%d,%s"), x, y, z, vx, vy, vz,p, yaw, r,(isBridgeOut ? TEXT("true") : TEXT("false")));
 	//UE_LOG(LogTemp, Warning, TEXT( "%s"), *cellstring);
-	
-	FPlayerStateTable PlayerStats;
-	FName(TEXT("Player State"));
-
-	if (CurrentGameMode->PlayerTable != nullptr)
-	{
-
-		nameCounter += 1;
-		FString NewNumber = FString::FromInt(nameCounter);
-		FString NewName = TEXT("Player State");
-		NewName.Append(NewNumber);
-
-		FName RowName = FName(*NewName);
-
-		PlayerStats.X = x;
-		PlayerStats.Y = y;
-		PlayerStats.Z = z;
-		PlayerStats.VX = vx;
-		PlayerStats.VY = vy;
-		PlayerStats.VZ = vz;
-		PlayerStats.pitch = p;
-		PlayerStats.yaw = yaw;
-		PlayerStats.roll = r;
-		PlayerStats.bisBridgeOut = isBridgeOut;
-
-		CurrentGameMode->PlayerTable->AddRow(RowName, PlayerStats);
-		//UE_LOG(LogTemp, Warning, TEXT("///data is logged"));
-	}
 
 	return cellstring; //removed rotation for better visibility of squares
 }
@@ -188,12 +172,33 @@ int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
 void ATestGroundCharacter::RememberCurrentState()
 {
 	FString key = GetCellString();
+	//UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key);
 	UMySaveGame* value = GetStateAsSave();
 	if (!StatesForCells.Contains(key))
 	{
 		StatesForCells.Add(key,TArray<UMySaveGame*>());
 	}
 	StatesForCells[key].Add(value);
+
+	FPlayerStateTable PlayerStats;
+	//PlayerStats.CellString = key;
+
+	nameCounter += 1;
+	FString NewNumber = FString::FromInt(nameCounter);
+
+	PlayerStats.X = StatHolder[0];
+	PlayerStats.Y = StatHolder[1];
+	PlayerStats.Z = StatHolder[2];
+	PlayerStats.VX = StatHolder[3];
+	PlayerStats.VY = StatHolder[4];
+	PlayerStats.VZ = StatHolder[5];
+	//PlayerStats.pitch = key[6];
+	//PlayerStats.yaw = key[7];
+	//PlayerStats.roll = key[8];
+
+	StatHolder.Empty();
+	CurrentGameMode->PlayerTable->AddRow(FName(*NewNumber), PlayerStats);//add row to the datatable
+	UE_LOG(LogTemp, Warning, TEXT("///data is logged, %d"), key[0]);
 
 }
 
@@ -203,9 +208,9 @@ void ATestGroundCharacter::FastTick()
 	{
 		SlowTick();
 		CurrentGameMode->ExportData();
-		GetGameInstance()->Shutdown();//just for cvs data saving purposes. 
+		GetGameInstance()->Shutdown();//just for csv data saving purposes. 
+		RememberCurrentState();
 	}
-	RememberCurrentState();
 }
 
 void ATestGroundCharacter::SlowTick()
@@ -440,13 +445,13 @@ UMySaveGame* ATestGroundCharacter::GetStateAsSave()
 void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
 {
 	SetActorLocation(Save->PlayerLocation);
-	SetActorTransform(Save->Transform);
+	//SetActorTransform(Save->Transform);	//we are not saving transforms 
 	TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
 	TGCMovementComponent->Velocity = Save->Velocity;
 	gamebridge->bIsPressed = Save->bBridgeVisible;
 	gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
 	gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
 
-	UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (gamebridge->bIsPressed ? TEXT("true") : TEXT("false")));
+	//UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (gamebridge->bIsPressed ? TEXT("true") : TEXT("false")));
 
 }

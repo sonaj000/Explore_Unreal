@@ -27,6 +27,9 @@ struct FPlayerStateTable : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FString CellString;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int X;
 
@@ -45,17 +48,14 @@ struct FPlayerStateTable : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int VZ;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int pitch;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//int pitch;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int yaw;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//int yaw;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int roll;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bisBridgeOut;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//int roll;
 };
 
 
@@ -108,6 +108,8 @@ public:
 
 	UPROPERTY()
 	bool bcanJump;
+
+	TArray<int>StatHolder;
 
 protected:
 
