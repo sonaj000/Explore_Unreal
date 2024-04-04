@@ -14,7 +14,7 @@
 <h2 style="color: white;">Showcase Image</h2>
 <img src="Slice.png" alt="Example Showcase" width = "600" height = "600">
 
-<p>Example showcase of the algorithm running through an example level</p>
+<p style="color:white;">Example showcase of the algorithm running through an example level</p>
 
 
 
