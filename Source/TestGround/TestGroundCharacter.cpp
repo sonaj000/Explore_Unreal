@@ -115,7 +115,7 @@ void ATestGroundCharacter::BeginPlay()
 
 	//timer for the slow tick which teleports the character to a random place
 	FTimerHandle SlowTimer;
-	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 10.0f, true); 
+	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 5.0f, true); 
 
 	//timer for random input
 	FTimerHandle RandomTimer;
@@ -246,14 +246,16 @@ void ATestGroundCharacter::SpawnDebugBoxForCell(FString cell)
 	int32 cy = FCString::Atoi(*StringComponents[1])* 100 ;
 	int32 cz = FCString::Atoi(*StringComponents[2])* 100 + 50;
 
-	DrawDebugBox(GetWorld(), FVector(cx,cy,cz), FVector(50.0f, 50.0f, 50.0f), FColor::Black, true, 3.0f, 0, 1.0f);
+	DrawDebugBox(GetWorld(), FVector(cx,cy,cz), FVector(50.0f, 50.0f, 50.0f), FColor::Red, true, 3.0f, 0, 1.0f);
 	
 }
 
 void ATestGroundCharacter::Tick(float DeltaSeconds)
 {
 	FString cell = GetCellString();
-	if (!StatesForCells.Contains(cell))
+	TCHAR thirdCharacter = cell[5];
+	UE_LOG(LogTemp, Warning, TEXT("cellstring is : %c"),thirdCharacter);
+	if (!StatesForCells.Contains(cell) && GetActorLocation().Z >= 0.0f)//we should change this one. 
 	{
 		RememberCurrentState();
 		//UE_LOG(LogTemp, Warning, TEXT("%s"), *cell);
@@ -444,10 +446,12 @@ UMySaveGame* ATestGroundCharacter::GetStateAsSave()
 
 void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
 {
-	SetActorLocation(Save->PlayerLocation);
+;
+	///SetActorLocation(Save->PlayerLocation,false,NULL,ETeleportType::TeleportPhysics);
+	TeleportTo(Save->PlayerLocation, Save->Transform.Rotator(),false,false);
 	//SetActorTransform(Save->Transform);	//we are not saving transforms 
-	TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
-	TGCMovementComponent->Velocity = Save->Velocity;
+	//TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
+	//TGCMovementComponent->Velocity = Save->Velocity;
 	gamebridge->bIsPressed = Save->bBridgeVisible;
 	gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
 	gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
