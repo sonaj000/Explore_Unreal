@@ -125,43 +125,43 @@ void ATestGroundCharacter::BeginPlay()
 
 	nameCounter = 0;
 	
-	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f); //make things run 10x faster. 
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 2.0f); //make things run 10x faster. 
 }
 
-FString ATestGroundCharacter::GetCellString()
+TArray<FVector> ATestGroundCharacter::GetCellString()
 {
+	TArray<FVector>CellR;
 	int x = GetActorLocation().X / 100;
 	int y = GetActorLocation().Y / 100;
 	int z = GetActorLocation().Z / 100;
 
-	int vx = GetVelocity().X / 100;
-	int vy = GetVelocity().Y / 100;
-	int vz = GetVelocity().Z / 100;
-
-	int p =  GetActorRotation().Pitch / 45; 
-	int yaw = GetActorRotation().Yaw / 45; //only yaw really changes. 
-	int r = GetActorRotation().Roll / 45;
-
-	int isWall = TGCMovementComponent->isWallRunning();
-
-	bool isBridgeOut = gamebridge->bIsPressed;
-
 	if (z < 0)
 	{
-		z = 20;
+		z = 5;
 	}
+
+	FVector Position = FVector(x, y, z);
+
+	CellR.Add(Position);
+	//int vx = GetVelocity().X / 100;
+	//int vy = GetVelocity().Y / 100;
+	//int vz = GetVelocity().Z / 100;
+
+	//int isWall = TGCMovementComponent->isWallRunning();
+
+	//int isBridgeOut = gamebridge->bIsPressed;
 
 	StatHolder.Add(x);
 	StatHolder.Add(y);
 	StatHolder.Add(z);
-	StatHolder.Add(vx);
-	StatHolder.Add(vy);
-	StatHolder.Add(vz);
+	//StatHolder.Add(vx);
+	//StatHolder.Add(vy);
+	///StatHolder.Add(vz);
 
-	FString cellstring = FString::Printf(TEXT("%d,%d,%d,%d,%d,%d,%d,%d,%d,%s"), x, y, z, vx, vy, vz,p, yaw, r,(isBridgeOut ? TEXT("true") : TEXT("false")));
-	//UE_LOG(LogTemp, Warning, TEXT( "%s"), *cellstring);
+	//FString cellstring = FString::Printf(TEXT("%d,%d,%d,%d,%d,%d,%d,%d,%d,%s"), x, y, z);
+	//UE_LOG(LogTemp, Warning, TEXT( "%s"), *Position.ToString());
 
-	return cellstring; //removed rotation for better visibility of squares
+	return CellR; //removed rotation for better visibility of squares
 }
 
 int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
@@ -171,12 +171,14 @@ int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
 
 void ATestGroundCharacter::RememberCurrentState()
 {
-	FString key = GetCellString();
-	//UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key);
+	TArray<FVector>holder = GetCellString();
+	FVector key = holder[0];
+	//UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key.ToString());
 	UMySaveGame* value = GetStateAsSave();
 	if (!StatesForCells.Contains(key))
 	{
 		StatesForCells.Add(key,TArray<UMySaveGame*>());
+		SpawnDebugBoxForCell(key);
 	}
 	StatesForCells[key].Add(value);
 
@@ -189,36 +191,34 @@ void ATestGroundCharacter::RememberCurrentState()
 	PlayerStats.X = StatHolder[0];
 	PlayerStats.Y = StatHolder[1];
 	PlayerStats.Z = StatHolder[2];
-	PlayerStats.VX = StatHolder[3];
-	PlayerStats.VY = StatHolder[4];
-	PlayerStats.VZ = StatHolder[5];
-	//PlayerStats.pitch = key[6];
-	//PlayerStats.yaw = key[7];
-	//PlayerStats.roll = key[8];
+	//PlayerStats.VX = StatHolder[3];
+	//PlayerStats.VY = StatHolder[4];
+	//PlayerStats.VZ = StatHolder[5];
 
 	StatHolder.Empty();
 	CurrentGameMode->PlayerTable->AddRow(FName(*NewNumber), PlayerStats);//add row to the datatable
-	UE_LOG(LogTemp, Warning, TEXT("///data is logged, %d"), key[0]);
-
+	//UE_LOG(LogTemp, Warning, TEXT("%s"), *cell);
 }
 
 void ATestGroundCharacter::FastTick()
 {
-	if (GetActorLocation().Z <= 0.0f)
-	{
-		SlowTick();
-		CurrentGameMode->ExportData();
-		GetGameInstance()->Shutdown();//just for csv data saving purposes. 
-		RememberCurrentState();
-	}
+	RememberCurrentState();
+
+	//if (GetActorLocation().Z <= 0.0f)
+	//{
+	//	SlowTick();
+	//	CurrentGameMode->ExportData();
+	//	GetGameInstance()->Shutdown();//just for csv data saving purposes. 
+	//	RememberCurrentState();
+	//}
 }
 
 void ATestGroundCharacter::SlowTick()
 {
 	//pick a random cell, then a random state within the cell, and then restore it. 
-	TArray<FString>KeyArray;
+	TArray<FVector>KeyArray;
 	StatesForCells.GetKeys(KeyArray);
-	FString selectedCell = KeyArray[FMath::RandRange(0, StatesForCells.Num() - 1)];
+	FVector selectedCell = KeyArray[FMath::RandRange(0, StatesForCells.Num() - 1)];
 	//UE_LOG(LogTemp, Warning, TEXT("/// selected cell: %s"), *selectedCell);
 	TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
 	UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
@@ -227,7 +227,7 @@ void ATestGroundCharacter::SlowTick()
 	RestoreStateFromSave(selectedState);
 
 	//print cells statistics report
-	UE_LOG(LogTemp, Warning, TEXT("///"));
+	//UE_LOG(LogTemp, Warning, TEXT("///"));
 	for (auto pair : StatesForCells)
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("cellstring : %s, num states in cell : %d"), *pair.Key, pair.Value.Num());
@@ -235,37 +235,29 @@ void ATestGroundCharacter::SlowTick()
 
 }
 
-void ATestGroundCharacter::SpawnDebugBoxForCell(FString cell)
+void ATestGroundCharacter::SpawnDebugBoxForCell(FVector cell)
 {
-	TArray<FString> StringComponents;
+	//TArray<FString> StringComponents;
 
-	// Parse the string into an array of individual components based on commas
-	cell.ParseIntoArray(StringComponents, TEXT(","), true);
+	//// Parse the string into an array of individual components based on commas
+	//cell.ParseIntoArray(StringComponents, TEXT(","), true);
 
-	int32 cx = FCString::Atoi(*StringComponents[0])* 100 ;
-	int32 cy = FCString::Atoi(*StringComponents[1])* 100 ;
-	int32 cz = FCString::Atoi(*StringComponents[2])* 100 + 50;
+	//int32 cx = FCString::Atoi(*StringComponents[0])* 100 ;
+	//int32 cy = FCString::Atoi(*StringComponents[1])* 100 ;
+	//int32 cz = FCString::Atoi(*StringComponents[2])* 100 + 50;
 
-	DrawDebugBox(GetWorld(), FVector(cx,cy,cz), FVector(50.0f, 50.0f, 50.0f), FColor::Red, true, 3.0f, 0, 1.0f);
+	UE_LOG(LogTemp, Warning, TEXT("debug box is at: %s"), *cell.ToString());
+
+	DrawDebugBox(GetWorld(), FVector(cell.X*100,cell.Y*100, cell.Z*100 + 50), FVector(50.0f, 50.0f, 50.0f), FColor::Red, true, 3.0f, 0, 1.0f);
 	
 }
 
 void ATestGroundCharacter::Tick(float DeltaSeconds)
 {
-	FString cell = GetCellString();
-	TCHAR thirdCharacter = cell[5];
-	UE_LOG(LogTemp, Warning, TEXT("cellstring is : %c"),thirdCharacter);
-	if (!StatesForCells.Contains(cell) && GetActorLocation().Z >= 0.0f)//we should change this one. 
-	{
-		RememberCurrentState();
-		//UE_LOG(LogTemp, Warning, TEXT("%s"), *cell);
-		SpawnDebugBoxForCell(cell);
-	}
 	if (bCanGo)
 	{
 		RandomSeed();
 	}
-	//GetCellString();
 	RandomMovement();
 }
 
@@ -446,15 +438,19 @@ UMySaveGame* ATestGroundCharacter::GetStateAsSave()
 
 void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
 {
-;
-	///SetActorLocation(Save->PlayerLocation,false,NULL,ETeleportType::TeleportPhysics);
-	TeleportTo(Save->PlayerLocation, Save->Transform.Rotator(),false,false);
+	FHitResult* obstacles = nullptr;
+	
+	if (SetActorLocation(Save->PlayerLocation, true, obstacles,ETeleportType::TeleportPhysics))
+	{
+		gamebridge->bIsPressed = Save->bBridgeVisible;
+		gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
+		gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
+	}
+
+	//TeleportTo(Save->PlayerLocation, Save->Transform.Rotator(),false,false);
 	//SetActorTransform(Save->Transform);	//we are not saving transforms 
 	//TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
 	//TGCMovementComponent->Velocity = Save->Velocity;
-	gamebridge->bIsPressed = Save->bBridgeVisible;
-	gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
-	gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
 
 	//UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (gamebridge->bIsPressed ? TEXT("true") : TEXT("false")));
 

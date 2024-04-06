@@ -133,7 +133,7 @@ protected:
 	void TestFunction();
 
 	UFUNCTION()
-	void SpawnDebugBoxForCell(FString cell);
+	void SpawnDebugBoxForCell(FVector cell);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) //counter for FNAME purposes for adding row name
 		int nameCounter = 0;
@@ -156,7 +156,7 @@ protected:
 	virtual void BeginPlay();
 
 	UFUNCTION()
-	FString GetCellString();
+	TArray<FVector> GetCellString();
 
 	UFUNCTION()
 	int CellScoreCalculator(FString SelectedCell);
@@ -166,9 +166,8 @@ protected:
 
 public:
 
-	TMap<FString, TArray<UMySaveGame*>>StatesForCells;
+	TMap<FVector, TArray<UMySaveGame*>>StatesForCells;
 
-	TMap<FString, TArray<int>>CellAttributes;
 
 	void RememberCurrentState();
 
