@@ -173,7 +173,7 @@ void ATestGroundCharacter::RememberCurrentState()
 {
 	TArray<FVector>holder = GetCellString();
 	FVector key = holder[0];
-	//UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key.ToString());
 	UMySaveGame* value = GetStateAsSave();
 	if (!StatesForCells.Contains(key))
 	{
