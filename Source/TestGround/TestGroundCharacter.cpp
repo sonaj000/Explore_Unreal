@@ -18,6 +18,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Misc/DefaultValueHelper.h"
 #include "MySaveGame.h"
+#include "Templates/SharedPointer.h"
+
 #include "Core/PressurePlate.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
@@ -109,23 +111,12 @@ void ATestGroundCharacter::BeginPlay()
 
 	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
 
-	//timer for the fast tick which is the state saving
-	FTimerHandle FastTimer;
-	GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &ATestGroundCharacter::FastTick, 0.1f, true);
-
-	//timer for the slow tick which teleports the character to a random place
-	FTimerHandle SlowTimer;
-	GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &ATestGroundCharacter::SlowTick, 5.0f, true); 
-
-	//timer for random input
-	FTimerHandle RandomTimer;
-	GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &ATestGroundCharacter::RandomSeed, 2.0f, true);
-
 	gamebridge = Cast<APressurePlate>(UGameplayStatics::GetActorOfClass(GetWorld(), APressurePlate::StaticClass()));
 
 	nameCounter = 0;
-	
+
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 2.0f); //make things run 10x faster. 
+	
 }
 
 TArray<FVector> ATestGroundCharacter::GetCellString()
@@ -169,138 +160,11 @@ int ATestGroundCharacter::CellScoreCalculator(FString SelectedCell)
 	return 0;
 }
 
-void ATestGroundCharacter::RememberCurrentState()
-{
-	TArray<FVector>holder = GetCellString();
-	FVector key = holder[0];
-	UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key.ToString());
-	UMySaveGame* value = GetStateAsSave();
-	if (!StatesForCells.Contains(key))
-	{
-		StatesForCells.Add(key,TArray<UMySaveGame*>());
-		SpawnDebugBoxForCell(key);
-	}
-	StatesForCells[key].Add(value);
-
-	FPlayerStateTable PlayerStats;
-	//PlayerStats.CellString = key;
-
-	nameCounter += 1;
-	FString NewNumber = FString::FromInt(nameCounter);
-
-	PlayerStats.X = StatHolder[0];
-	PlayerStats.Y = StatHolder[1];
-	PlayerStats.Z = StatHolder[2];
-	//PlayerStats.VX = StatHolder[3];
-	//PlayerStats.VY = StatHolder[4];
-	//PlayerStats.VZ = StatHolder[5];
-
-	StatHolder.Empty();
-	CurrentGameMode->PlayerTable->AddRow(FName(*NewNumber), PlayerStats);//add row to the datatable
-	//UE_LOG(LogTemp, Warning, TEXT("%s"), *cell);
-}
-
-void ATestGroundCharacter::FastTick()
-{
-	RememberCurrentState();
-
-	//if (GetActorLocation().Z <= 0.0f)
-	//{
-	//	SlowTick();
-	//	CurrentGameMode->ExportData();
-	//	GetGameInstance()->Shutdown();//just for csv data saving purposes. 
-	//	RememberCurrentState();
-	//}
-}
-
-void ATestGroundCharacter::SlowTick()
-{
-	//pick a random cell, then a random state within the cell, and then restore it. 
-	TArray<FVector>KeyArray;
-	StatesForCells.GetKeys(KeyArray);
-	FVector selectedCell = KeyArray[FMath::RandRange(0, StatesForCells.Num() - 1)];
-	//UE_LOG(LogTemp, Warning, TEXT("/// selected cell: %s"), *selectedCell);
-	TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
-	UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
-	
-
-	RestoreStateFromSave(selectedState);
-
-	//print cells statistics report
-	//UE_LOG(LogTemp, Warning, TEXT("///"));
-	for (auto pair : StatesForCells)
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("cellstring : %s, num states in cell : %d"), *pair.Key, pair.Value.Num());
-	}
-
-}
-
-void ATestGroundCharacter::SpawnDebugBoxForCell(FVector cell)
-{
-	//TArray<FString> StringComponents;
-
-	//// Parse the string into an array of individual components based on commas
-	//cell.ParseIntoArray(StringComponents, TEXT(","), true);
-
-	//int32 cx = FCString::Atoi(*StringComponents[0])* 100 ;
-	//int32 cy = FCString::Atoi(*StringComponents[1])* 100 ;
-	//int32 cz = FCString::Atoi(*StringComponents[2])* 100 + 50;
-
-	UE_LOG(LogTemp, Warning, TEXT("debug box is at: %s"), *cell.ToString());
-
-	DrawDebugBox(GetWorld(), FVector(cell.X*100,cell.Y*100, cell.Z*100 + 50), FVector(50.0f, 50.0f, 50.0f), FColor::Red, true, 3.0f, 0, 1.0f);
-	
-}
 
 void ATestGroundCharacter::Tick(float DeltaSeconds)
 {
-	if (bCanGo)
-	{
-		RandomSeed();
-	}
-	RandomMovement();
 }
 
-void ATestGroundCharacter::RandomSeed()
-{
-	RandSeed = UKismetMathLibrary::RandomInteger(8); //random number between 0-7
-	bCanGo = false;
-}
-
-void ATestGroundCharacter::RandomMovement()
-{
-	switch (RandSeed)
-	{
-	case 0:
-		AddMovementInput(FVector(0.0f, -1.0, 0.0f));
-		break;
-	case 1:
-		AddMovementInput(FVector(0.0f, 1.0, 0.0f)); //
-		break;
-	case 2:
-		AddMovementInput(FVector(1.0f, 0.0, 0.0f)); //
-		break;
-	case 3:
-		AddMovementInput(FVector(-1.0f, 0.0, 0.0f)); //
-		break;
-	case 4:
-		AddMovementInput(FVector(0.0f, -1.0, 0.0f));
-		Jump();
-		break;
-	case 5:
-		AddMovementInput(FVector(0.0f, 1.0, 0.0f));
-		Jump();
-		break;
-	case 6:
-		AddMovementInput(FVector(1.0f, 0.0, 0.0f)); //
-		Jump();
-		break;
-	case 7:
-		AddMovementInput(FVector(-1.0f, 0.0, 0.0f)); //
-		Jump();
-		break;
-	}
-}
 
 void ATestGroundCharacter::NewSeed()
 {
@@ -324,7 +188,7 @@ void ATestGroundCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::Look);
 
-		EnhancedInputComponent->BindAction(TestAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::SlowTick);
+		EnhancedInputComponent->BindAction(TestAction, ETriggerEvent::Triggered, this, &ATestGroundCharacter::TestFunction);
 
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ATestGroundCharacter::Sprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ATestGroundCharacter::StopSprinting);
@@ -424,34 +288,3 @@ void ATestGroundCharacter::TestFunction()
 }
 
 
-UMySaveGame* ATestGroundCharacter::GetStateAsSave()
-{
-	UMySaveGame* GameData = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
-	GameData->Transform = GetTransform();
-	GameData->PlayerLocation = GetActorLocation();
-	GameData->CurrentMode = TGCMovementComponent->GetCustomMovementMode();
-	GameData->Velocity = GetVelocity();
-	GameData->bBridgeVisible = gamebridge->bIsPressed;
-
-	return GameData;
-}
-
-void ATestGroundCharacter::RestoreStateFromSave(UMySaveGame* Save)
-{
-	FHitResult* obstacles = nullptr;
-	
-	if (SetActorLocation(Save->PlayerLocation, true, obstacles,ETeleportType::TeleportPhysics))
-	{
-		gamebridge->bIsPressed = Save->bBridgeVisible;
-		gamebridge->Bridge->SetActorHiddenInGame(!Save->bBridgeVisible);
-		gamebridge->Bridge->SetActorEnableCollision(Save->bBridgeVisible);
-	}
-
-	//TeleportTo(Save->PlayerLocation, Save->Transform.Rotator(),false,false);
-	//SetActorTransform(Save->Transform);	//we are not saving transforms 
-	//TGCMovementComponent->SetMovementMode(MOVE_Custom, CMOVE_WallRun);
-	//TGCMovementComponent->Velocity = Save->Velocity;
-
-	//UE_LOG(LogTemp, Warning, TEXT("bisPressed is now : %s"), (gamebridge->bIsPressed ? TEXT("true") : TEXT("false")));
-
-}

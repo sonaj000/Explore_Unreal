@@ -11,27 +11,7 @@ void UTestWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (HostB)
-	{
-		HostB->OnClicked.AddUniqueDynamic(this, &UTestWidget::UTestWidget::HostClick); 
-	}
-	if (JoinB)
-	{
-		JoinB->OnClicked.AddUniqueDynamic(this, &UTestWidget::JoinClick);
-	}
 
 }
 
-void UTestWidget::HostClick()
-{
-	UTGameInstance* Holder = Cast<UTGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
-	Holder->Host(); 
-}
-
-void UTestWidget::JoinClick()
-{
-	UTGameInstance* Holder = Cast<UTGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
-	UE_LOG(LogTemp, Warning, TEXT("join clicking"));
-	Holder->Join("/Game/Levels/FirstMap");
-}
 

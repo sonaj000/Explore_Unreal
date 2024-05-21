@@ -11,8 +11,6 @@
 class FSQLiteDatabase;
 class UMySaveGame;
 class ATestGroundCharacter;
-
-
 class UDataTable;
 
 UCLASS(minimalapi)

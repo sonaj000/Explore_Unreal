@@ -115,6 +115,7 @@ bool UMyCharacterMovementComponent::TryWallRun()
        UE_LOG(LogTemp, Warning, TEXT("isnotfalling"));
         return false;
     }
+
     if (Velocity.SizeSquared2D() < pow(MinWallRunSpeed, 2)) //if horizontal velocity is less than minwallspeed. minwallspeed evlautes to 40,000. 
     {
         float hold = Velocity.SizeSquared2D();
@@ -137,7 +138,7 @@ bool UMyCharacterMovementComponent::TryWallRun()
     if (GetWorld()->LineTraceSingleByProfile(FloorHit, Start, Start + FVector::DownVector * (CapHH() + MinWallRunHeight), "Vehicle", Params)) //profile name is a collision type
     {
         AActor* hit = FloorHit.GetActor();
-        //UE_LOG(LogTemp, Warning, TEXT("player height issue : %s"),*hit->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("player height issue : %s"),*hit->GetName());
         return false;
     }
 
@@ -156,21 +157,21 @@ bool UMyCharacterMovementComponent::TryWallRun()
     {
         DrawDebugLine(GetWorld(), Start, RightEnd, FColor::Blue, false, 2.0f, 0, 2.0f);
         GetWorld()->LineTraceSingleByProfile(WallHit, Start, RightEnd, "Vehicle", Params);
-        //UE_LOG(LogTemp, Warning, TEXT("right wall has a valid blocking hit : %s"), (WallHit.IsValidBlockingHit() ? TEXT("true") : TEXT("false")));
+        UE_LOG(LogTemp, Warning, TEXT("right wall has a valid blocking hit : %s"), (WallHit.IsValidBlockingHit() ? TEXT("true") : TEXT("false")));
         if (WallHit.IsValidBlockingHit() && (Velocity | WallHit.Normal) < 0)
         {
             Safe_bWallRunRight = true;
         }
         else
         {
-            //UE_LOG(LogTemp, Warning, TEXT("right cast is wrong"));
+            UE_LOG(LogTemp, Warning, TEXT("right cast is wrong"));
             return false;
         }
     }
     FVector ProjectedVelocity = FVector::VectorPlaneProject(Velocity, WallHit.Normal);
     if (ProjectedVelocity.SizeSquared2D() < pow(MinWallRunSpeed, 2))
     {
-        //UE_LOG(LogTemp, Warning, TEXT("projected velocity issue"));
+        UE_LOG(LogTemp, Warning, TEXT("projected velocity issue"));
         return false;
     }
     // Passed all conditions
@@ -331,7 +332,7 @@ void UMyCharacterMovementComponent::UpdateCharacterStateBeforeMovement(float Del
     if (IsFalling())
     {
         TryWallRun();
-        UE_LOG(LogTemp, Warning, TEXT("value of try wall run is : %s"), (TryWallRun() ? TEXT("true") : TEXT("false")));
+        //UE_LOG(LogTemp, Warning, TEXT("value of try wall run is : %s"), (TryWallRun() ? TEXT("true") : TEXT("false")));
     }
 
     Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);

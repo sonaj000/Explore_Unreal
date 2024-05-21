@@ -132,18 +132,9 @@ protected:
 	UFUNCTION()
 	void TestFunction();
 
-	UFUNCTION()
-	void SpawnDebugBoxForCell(FVector cell);
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) //counter for FNAME purposes for adding row name
 		int nameCounter = 0;
 private:
-
-	UFUNCTION()
-	UMySaveGame* GetStateAsSave();
-
-	UFUNCTION()
-	void RestoreStateFromSave(UMySaveGame* Save);
 
 	UPROPERTY()
 	ATestGroundGameMode* CurrentGameMode;
@@ -168,13 +159,6 @@ public:
 
 	TMap<FVector, TArray<UMySaveGame*>>StatesForCells;
 
-
-	void RememberCurrentState();
-
-	void FastTick();
-
-	void SlowTick();
-
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
@@ -185,12 +169,6 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 protected: //FSM stuff
-
-	UFUNCTION()
-	void RandomSeed();
-
-	UFUNCTION()
-	void RandomMovement();
 
 	UPROPERTY()
 	int RandSeed = 0;

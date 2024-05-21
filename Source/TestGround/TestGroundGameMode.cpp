@@ -6,16 +6,14 @@
 #include "SQLiteDatabase.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/FileHelper.h"
+#include "Engine/DataTable.h"
+
 #include "MySaveGame.h"
 
 ATestGroundGameMode::ATestGroundGameMode()
 {
 	// set default pawn class to our Blueprinted character
-	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnBPClass(TEXT("/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"));
-	if (PlayerPawnBPClass.Class != NULL)
-	{
-		DefaultPawnClass = PlayerPawnBPClass.Class;
-	}
+
 	Db = nullptr;
 	//this two lines help the gamemmode actually tick otherwise no work. 
 	PrimaryActorTick.bStartWithTickEnabled = true;
@@ -93,14 +91,6 @@ void ATestGroundGameMode::ExportData()
 	}
 
 	FString TableString;
-
-
-	if (PlayerTable != nullptr)
-	{
-		TableString = PlayerTable->GetTableAsCSV();
-		FFileHelper::SaveStringToFile(TableString, *MyFilePath); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
-		UE_LOG(LogTemp, Warning, TEXT("we loaded correctly"));
-	}
 	
 }
 

@@ -26,10 +26,4 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* JoinB;
 
-	UFUNCTION()
-	void HostClick();
-
-	UFUNCTION()
-	void JoinClick();
-
 };
