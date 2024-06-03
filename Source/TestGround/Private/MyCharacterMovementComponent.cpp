@@ -83,13 +83,13 @@ float UMyCharacterMovementComponent::GetMaxBrakingDeceleration() const
 
 bool UMyCharacterMovementComponent::CanAttemptJump() const
 {
-    UE_LOG(LogTemp, Warning, TEXT("Can attempt jump"));
+    //UE_LOG(LogTemp, Warning, TEXT("Can attempt jump"));
     return Super::CanAttemptJump() || isWallRunning();
 }
 
 bool UMyCharacterMovementComponent::DoJump(bool bReplayingMoves)
 {
-    UE_LOG(LogTemp, Warning, TEXT("do jump"));
+    //UE_LOG(LogTemp, Warning, TEXT("do jump"));
     bool bWasWallRunning = isWallRunning();
     if (Super::DoJump(bReplayingMoves)) //check to see if we are doing the jump
     {
@@ -112,14 +112,14 @@ bool UMyCharacterMovementComponent::TryWallRun()
 {
     if (!IsFalling())
     {
-       UE_LOG(LogTemp, Warning, TEXT("isnotfalling"));
+       //UE_LOG(LogTemp, Warning, TEXT("isnotfalling"));
         return false;
     }
 
     if (Velocity.SizeSquared2D() < pow(MinWallRunSpeed, 2)) //if horizontal velocity is less than minwallspeed. minwallspeed evlautes to 40,000. 
     {
         float hold = Velocity.SizeSquared2D();
-        UE_LOG(LogTemp, Warning, TEXT("velocity issue and velocity is : %f"), hold);
+        //UE_LOG(LogTemp, Warning, TEXT("velocity issue and velocity is : %f"), hold);
         return false;
     }
     //if (Velocity.Z < -MaxVerticalWallRunSpeed) //check z velocity so we could comment this out if don't want to automatically wallrun after falling fast. 
@@ -138,7 +138,7 @@ bool UMyCharacterMovementComponent::TryWallRun()
     if (GetWorld()->LineTraceSingleByProfile(FloorHit, Start, Start + FVector::DownVector * (CapHH() + MinWallRunHeight), "Vehicle", Params)) //profile name is a collision type
     {
         AActor* hit = FloorHit.GetActor();
-        UE_LOG(LogTemp, Warning, TEXT("player height issue : %s"),*hit->GetName());
+        //UE_LOG(LogTemp, Warning, TEXT("player height issue : %s"),*hit->GetName());
         return false;
     }
 
@@ -157,28 +157,28 @@ bool UMyCharacterMovementComponent::TryWallRun()
     {
         DrawDebugLine(GetWorld(), Start, RightEnd, FColor::Blue, false, 2.0f, 0, 2.0f);
         GetWorld()->LineTraceSingleByProfile(WallHit, Start, RightEnd, "Vehicle", Params);
-        UE_LOG(LogTemp, Warning, TEXT("right wall has a valid blocking hit : %s"), (WallHit.IsValidBlockingHit() ? TEXT("true") : TEXT("false")));
+        //UE_LOG(LogTemp, Warning, TEXT("right wall has a valid blocking hit : %s"), (WallHit.IsValidBlockingHit() ? TEXT("true") : TEXT("false")));
         if (WallHit.IsValidBlockingHit() && (Velocity | WallHit.Normal) < 0)
         {
             Safe_bWallRunRight = true;
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("right cast is wrong"));
+            //UE_LOG(LogTemp, Warning, TEXT("right cast is wrong"));
             return false;
         }
     }
     FVector ProjectedVelocity = FVector::VectorPlaneProject(Velocity, WallHit.Normal);
     if (ProjectedVelocity.SizeSquared2D() < pow(MinWallRunSpeed, 2))
     {
-        UE_LOG(LogTemp, Warning, TEXT("projected velocity issue"));
+        //UE_LOG(LogTemp, Warning, TEXT("projected velocity issue"));
         return false;
     }
     // Passed all conditions
     Velocity = ProjectedVelocity;
     Velocity.Z = FMath::Clamp(Velocity.Z, 0.f, MaxVerticalWallRunSpeed);
     SetMovementMode(MOVE_Custom, CMOVE_WallRun);
-    UE_LOG(LogTemp, Warning, TEXT("Starting wall run"));
+    //UE_LOG(LogTemp, Warning, TEXT("Starting wall run"));
     return true;
 }
 

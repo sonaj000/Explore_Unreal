@@ -41,7 +41,7 @@ public:
 	UPROPERTY()
 	ATestGroundCharacter* MCharacter;
 
-	UFUNCTION()
+	UFUNCTION(Exec)
 	void ExportData();
 
 	virtual void StartPlay() override;

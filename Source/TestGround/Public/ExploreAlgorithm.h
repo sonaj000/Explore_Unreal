@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Engine/DataTable.h"
 
 #include "ExploreAlgorithm.generated.h"
 
@@ -24,6 +25,28 @@ struct FTestStruct
 	UPROPERTY(EditAnywhere)
 	int counter = 2; //need uproperty to show up in json file
 
+
+};
+
+USTRUCT(BlueprintType)
+struct FExplorationTable : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	int X;
+
+	UPROPERTY(EditAnywhere)
+	int Y;
+
+	UPROPERTY(EditAnywhere)
+	int Z;
+
+	UPROPERTY(EditAnywhere)
+	int VisitCount;
+
+	UPROPERTY(EditAnywhere)
+	bool bCanTeleport;
 
 };
 
@@ -58,13 +81,21 @@ public:
 
 	TMap<FVector, int>VisitCount;
 
+	TMap<FVector, bool>CanTP;
+
 	UFUNCTION()
 	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines,float LifeTime, float Thickness);
+
+	UPROPERTY()
+	int counter;
+
+	UFUNCTION()
+	void ExportTable();
 
 protected: //Algorithm Functions
 
 	UFUNCTION()
-	TArray<FVector>GetCellState();
+	FVector GetCurrentCell();
 
 	void RecordCurrentState();
 
@@ -89,12 +120,12 @@ protected: //Algorithm Functions
 	int sr;
 
 	UPROPERTY()
-	FVector PastState;
+	FVector PastCell;
 
 	UPROPERTY()
 	TArray<FVector>Directions;
 
-	FVector LeastVisited();
+	FVector FindLeastVisitedCell();
 
 private: //Save State
 	UFUNCTION()
@@ -106,6 +137,7 @@ private: //Save State
 	UPROPERTY()
 	ATestGroundGameMode* CurrentGameMode;
 
+	
 public:
 	UFUNCTION(BlueprintCallable, Category = "Read Write File")
 	static FString ReadStringFromFile(FString FilePath, bool& bOutSuccess, FString& OutInfoMessage);

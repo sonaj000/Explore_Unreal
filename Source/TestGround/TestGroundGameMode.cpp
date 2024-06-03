@@ -7,6 +7,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/FileHelper.h"
 #include "Engine/DataTable.h"
+#include "ExploreAlgorithm.h"
 
 #include "MySaveGame.h"
 
@@ -32,6 +33,11 @@ void ATestGroundGameMode::InitGame(const FString& MapName, const FString& Option
 	Super::InitGame(MapName, Options, ErrorMessage);
 	UE_LOG(LogTemp, Warning, TEXT("init game works"));
 
+	if (PlayerTable)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("valid table"));
+	}
+
 }
 
 void ATestGroundGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -51,7 +57,7 @@ void ATestGroundGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("post login set the character to a new one "));
 	}
-	PlayerTable->EmptyTable();
+	//PlayerTable->EmptyTable();
 }
 
 void ATestGroundGameMode::Logout(AController* Exiting)
@@ -89,9 +95,15 @@ void ATestGroundGameMode::ExportData()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File not found!"));
 	}
-
+	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
+	CurrAlg->ExportTable();
 	FString TableString;
-	
+	if (PlayerTable != nullptr)
+	{
+		TableString = PlayerTable->GetTableAsCSV();
+		FFileHelper::SaveStringToFile(TableString, *MyFilePath); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
+		UE_LOG(LogTemp, Warning, TEXT("we loaded correctly"));
+	}
 }
 
 void ATestGroundGameMode::StartPlay()

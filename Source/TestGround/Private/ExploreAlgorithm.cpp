@@ -14,7 +14,8 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #include "JsonObjectConverter.h"
-
+#include "TestGround/TestGroundGameMode.h"
+#include "Misc/DateTime.h"
 #include "MySaveGame.h"
 
 // Sets default values
@@ -32,9 +33,41 @@ void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines
 	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + 50), FVector(50.0f, 50.0f, 50.0f), FColor::Red, bPersistentLines, LifeTime, 0, Thickness);
 }
 
-TArray<FVector>AExploreAlgorithm::GetCellState()
+void AExploreAlgorithm::ExportTable()
 {
-	TArray<FVector>CellR;
+	CurrentGameMode->PlayerTable->EmptyTable();
+	VisitCount.ValueSort([](const int& A, const int& B) {
+		return A < B; // sort by int value in the map
+		});
+
+	FDateTime CurrTime;
+	
+	for (auto& location : VisitCount)
+	{
+		counter++;
+		FExplorationTable ET;
+		ET.X = location.Key[0];
+		ET.Y = location.Key[1];
+		ET.Z = location.Key[2];
+
+		ET.VisitCount = location.Value;
+		if (CanTP.Contains(location.Key))
+		{
+			ET.bCanTeleport = CanTP[location.Key];
+		}
+		else
+		{
+			ET.bCanTeleport = true;
+			UE_LOG(LogTemp, Warning, TEXT("YIKES"));
+		}
+		CurrentGameMode->PlayerTable->AddRow(FName(*FString::FromInt(counter)), ET);//add row to the datatable 
+	}
+
+}
+
+FVector AExploreAlgorithm::GetCurrentCell()
+{
+	FVector CellR;
 	if (TestCharacter != nullptr)
 	{
 		int x = TestCharacter->GetActorLocation().X / 100;
@@ -47,42 +80,49 @@ TArray<FVector>AExploreAlgorithm::GetCellState()
 		}
 
 		FVector Position = FVector(x, y, z);
-
-		CellR.Add(Position);
+		return Position;
 	}
 
-	return CellR;
+	return FVector::ZeroVector;
 }
 
 void AExploreAlgorithm::RecordCurrentState()
 {
-	TArray<FVector>holder = GetCellState();
-	FVector key = holder[0];
+	FVector cell = GetCurrentCell();
 	//UE_LOG(LogTemp, Warning, TEXT("///new key is, %s"), *key.ToString());
 	//UE_LOG(LogTemp, Warning, TEXT("///past state is, %s"), *PastState.ToString());
 	//update visit count
-	if (key != PastState) //make sure the character has moved to a new location and the visit count only gets updated upon a new location. 
+	FHitResult* obstacles = nullptr;
+	///
+	if (cell != PastCell) //make sure the character has moved to a new location and the visit count only gets updated upon a new location. 
 	{
-		UMySaveGame* value = GetStateAsSave();
+		UMySaveGame* state = GetStateAsSave();
 		//update Number of States saved per cell
-		if (!StatesForCells.Contains(key))
+		if (!StatesForCells.Contains(cell))
 		{
-			StatesForCells.Add(key, TArray<UMySaveGame*>());
-			SpawnDebugBoxForCell(key, true, 3.0, 1.0);
+			StatesForCells.Add(cell, TArray<UMySaveGame*>());
+			SpawnDebugBoxForCell(cell, true, 3.0, 1.0);
 		}
-		StatesForCells[key].Add(value);
-
-		if (!VisitCount.Contains(key))
+		StatesForCells[cell].Add(state);
+		////
+		if (!VisitCount.Contains(cell))
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("///adding new key "));
-			VisitCount.Add(key, 1);
+			VisitCount.Add(cell, 1);
+			//UE_LOG(LogTemp, Warning, TEXT("///visit count is %s, "), *cell.ToString());
 		}
 		else
 		{
-			VisitCount[key]++;
-			UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[key]);
+			VisitCount[cell]++;
+			//UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[cell]);
 		}
-		PastState = key;
+		/////
+		if (!CanTP.Contains(cell))
+		{
+			CanTP.Add(cell, true);
+		}
+		/////
+		PastCell = cell;
+
 	}
 }
 
@@ -112,18 +152,19 @@ void AExploreAlgorithm::Search()
 
 void AExploreAlgorithm::Teleport()
 {
-	FVector selectedCell = LeastVisited();
+	FVector selectedCell = FindLeastVisitedCell();
 
 	if (StatesForCells.Contains(selectedCell)) 
 	{
 		TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
 		UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
 		RestoreStateFromSave(selectedState,selectedCell);
-		UE_LOG(LogTemp, Warning, TEXT("///teleport work"));
+		UE_LOG(LogTemp, Warning, TEXT("///teleport work and the visit count of this place is: %d"), VisitCount[selectedCell]);
+		VisitCount[selectedCell]++;
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("///no work"));
+		//UE_LOG(LogTemp, Warning, TEXT("///no work"));
 	}
 	
 }
@@ -136,41 +177,26 @@ void AExploreAlgorithm::Randomize()
 	sr = rand() % 5;
 }
 
-FVector AExploreAlgorithm::LeastVisited()
+FVector AExploreAlgorithm::FindLeastVisitedCell()
 {
 	VisitCount.ValueSort([](const int& A, const int& B) {
 		 return A < B; // sort by int value in the map
 	});
-	int lowestval = VisitCount.begin().Value();
-	UE_LOG(LogTemp, Warning, TEXT("this is the key: %d"),VisitCount.begin().Value());
+
+	for (auto& value : VisitCount)
+	{
+		if (CanTP.Contains(value.Key))
+		{
+			if (CanTP[value.Key] != false)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("this is the value: %d"), value.Value);
+				return value.Key;
+			}
+		}
+	}
+
 	return VisitCount.begin().Key();
 
-	//float longestDist = 0.0f;
-	//FVector longestVector = VisitCount.begin().Key();
-	//FVector Currloc = TestCharacter->GetActorLocation();
-	//for (auto& elem : VisitCount)
-	//{
-	//	//UE_LOG(LogTemp, Warning, TEXT("value: %d"), elem.Value);
-	//	if (elem.Value > lowestval)
-	//	{
-	//		UE_LOG(LogTemp, Warning, TEXT("returned from lowestval"));
-	//		return longestVector;
-	//	}
-	//	float currd = FVector::Dist(elem.Key, Currloc);
-	//	if (currd > longestDist)
-	//	{
-	//		longestDist = currd;
-	//		longestVector = elem.Key;
-	//	}
-	//}
-
-	////for (auto& Elem : VisitCount)
-	////{
-	////	UE_LOG(LogTemp, Warning, TEXT("we are starting with key: %s || value :%d"), *Elem.Key.ToString(), Elem.Value);
-	////}
-
-	////UE_LOG(LogTemp, Warning, TEXT("this is the key: %s"),*VisitCount.begin().Key().ToString());
-	//return longestVector;
 }
 
 UMySaveGame* AExploreAlgorithm::GetStateAsSave()
@@ -187,18 +213,42 @@ UMySaveGame* AExploreAlgorithm::GetStateAsSave()
 void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocation)
 {
 	FHitResult* obstacles = nullptr;
-	FVector RestoreOG = FVector(OldLocation.X * 100, OldLocation.Y * 100, OldLocation.Z * 100 + 50);
+	FVector RestoreOG = FVector(OldLocation.X * 100, OldLocation.Y * 100, OldLocation.Z * 100);
 	if (TestCharacter->SetActorLocation(RestoreOG, true, obstacles, ETeleportType::TeleportPhysics))
 	{
 		TestCharacter->SetActorRotation(Save->Transform.GetRotation(), ETeleportType::TeleportPhysics);
-		TestCharacter->GetCharacterMovement()->Velocity = Save->Velocity;
+		if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
+		{
+			TestCharacter->GetCharacterMovement()->Velocity = Save->Velocity;
+		}
 
+		//UE_LOG(LogTemp, Warning, TEXT("teleported here : %s"), *OldLocation.ToString());
+		if (!CanTP.Contains(OldLocation))
+		{
+			CanTP.Add(OldLocation, true);
+			//UE_LOG(LogTemp, Warning, TEXT("///added"));
 
-		UE_LOG(LogTemp, Warning, TEXT("teleported here : %s"), *OldLocation.ToString());
+		}
+		else
+		{
+			CanTP[OldLocation] = true;
+			//UE_LOG(LogTemp, Warning, TEXT("///is already in"));
+		}
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("failed teleport due to obstacle"));
+		if (!CanTP.Contains(OldLocation))
+		{
+			CanTP.Add(OldLocation, false);
+			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
+
+		}
+		else
+		{
+			CanTP[OldLocation] = false;
+			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
+		}
 	}
 }
 
@@ -278,7 +328,11 @@ void AExploreAlgorithm::WriteJson(FString JsonFilePath, TSharedPtr<FJsonObject> 
 		OutInfoMessage = FString::Printf(TEXT("write json failed"));
 		return;
 	}
-	//write string to file
+	//write string to file\
+
+	JsonString.ReplaceInline(TEXT("\r\n"), TEXT("")); //puts it on the same line. 
+	JsonString.ReplaceInline(TEXT("\n"), TEXT(""));
+
 	WriteStringToFile(JsonFilePath, JsonString, bOutSuccess, OutInfoMessage);
 	if (!bOutSuccess)
 	{
@@ -341,6 +395,8 @@ void AExploreAlgorithm::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+
 	if (TestCharacter != nullptr)
 	{
 		FActorSpawnParameters SpawnParams;
@@ -363,7 +419,7 @@ void AExploreAlgorithm::BeginPlay()
 		FTimerHandle RandomTimer;
 		GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &AExploreAlgorithm::Randomize, 1.0f, true);
 
-		PastState = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
+		PastCell = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
 
 		Swap = true;
 		Secondary_Input = false;
@@ -371,10 +427,11 @@ void AExploreAlgorithm::BeginPlay()
 		dirnum = 0;
 		sr = 0;
 
+		counter++;
 		//Load in the movemeent component or whatever. 
 	}
 
-	VisitCount.Add(PastState, 1);
+	VisitCount.Add(PastCell, 1);
 
 	//add the random search. 
 	FVector Forward = FVector(0.0, -1.0, 0.0f);
