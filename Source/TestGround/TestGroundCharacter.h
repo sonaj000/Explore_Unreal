@@ -143,8 +143,6 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
-	// To add mapping context
-	virtual void BeginPlay();
 
 	UFUNCTION()
 	TArray<FVector> GetCellString();
@@ -167,6 +165,9 @@ public:
 
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
+
+	// To add mapping context
+	virtual void BeginPlay();
 
 protected: //FSM stuff
 

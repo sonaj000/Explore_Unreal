@@ -17,20 +17,38 @@
 #include "TestGround/TestGroundGameMode.h"
 #include "Misc/DateTime.h"
 #include "MySaveGame.h"
+#include "NavigationSystem.h"
 
 // Sets default values
 AExploreAlgorithm::AExploreAlgorithm()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
+	TotalNewVisits = 0;
+	bcanAuto = true;
 }
 
-void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness)
+void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness, FColor color)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("debug box is at: %s"), *cell.ToString());
 
-	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + 50), FVector(50.0f, 50.0f, 50.0f), FColor::Red, bPersistentLines, LifeTime, 0, Thickness);
+	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + 50), FVector(50.0f, 50.0f, 50.0f), color, bPersistentLines, LifeTime, 0, Thickness);
+
+}
+
+void AExploreAlgorithm::DrawAllBoxes()
+{
+	for (auto& box : CanTP)
+	{
+		if (box.Value == true)
+		{
+			SpawnDebugBoxForCell(box.Key, false, 5.0, 1.0, FColor::Blue);
+		}
+		else
+		{
+			SpawnDebugBoxForCell(box.Key, false, 5.0, 1.0, FColor::Red);
+		}
+	}
 }
 
 void AExploreAlgorithm::ExportTable()
@@ -63,6 +81,18 @@ void AExploreAlgorithm::ExportTable()
 		CurrentGameMode->PlayerTable->AddRow(FName(*FString::FromInt(counter)), ET);//add row to the datatable 
 	}
 
+}
+
+void AExploreAlgorithm::ExportVisits()
+{
+	FCountTable VT;
+	FDateTime CurrTime;
+	//put this on a timer to keep track of number of new cells per exploration. 
+	VT.numNewVisits = TotalNewVisits;
+	VT.numSeconds = UGameplayStatics::GetRealTimeSeconds(GetWorld());
+
+	CurrentGameMode->CountTable->AddRow(FName(CurrTime.Now().ToString()), VT);
+	UE_LOG(LogTemp, Warning, TEXT("ExportVisits"));
 }
 
 FVector AExploreAlgorithm::GetCurrentCell()
@@ -101,13 +131,14 @@ void AExploreAlgorithm::RecordCurrentState()
 		if (!StatesForCells.Contains(cell))
 		{
 			StatesForCells.Add(cell, TArray<UMySaveGame*>());
-			SpawnDebugBoxForCell(cell, true, 3.0, 1.0);
+			SpawnDebugBoxForCell(cell, true, 3.0, 1.0, FColor::Blue);
 		}
 		StatesForCells[cell].Add(state);
 		////
 		if (!VisitCount.Contains(cell))
 		{
 			VisitCount.Add(cell, 1);
+			TotalNewVisits++;
 			//UE_LOG(LogTemp, Warning, TEXT("///visit count is %s, "), *cell.ToString());
 		}
 		else
@@ -122,7 +153,6 @@ void AExploreAlgorithm::RecordCurrentState()
 		}
 		/////
 		PastCell = cell;
-
 	}
 }
 
@@ -199,12 +229,16 @@ FVector AExploreAlgorithm::FindLeastVisitedCell()
 
 }
 
+
 UMySaveGame* AExploreAlgorithm::GetStateAsSave()
 {
 	UMySaveGame* GameData = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
 
 	GameData->Transform = TestCharacter->GetTransform();
-	GameData->Velocity = TestCharacter->GetVelocity();
+	if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
+	{
+		GameData->Velocity = TestCharacter->GetVelocity();
+	}
 
 	return GameData;
 
@@ -212,15 +246,15 @@ UMySaveGame* AExploreAlgorithm::GetStateAsSave()
 
 void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocation)
 {
-	FHitResult* obstacles = nullptr;
+	FHitResult* obstacles = new FHitResult(ForceInit);
 	FVector RestoreOG = FVector(OldLocation.X * 100, OldLocation.Y * 100, OldLocation.Z * 100);
-	if (TestCharacter->SetActorLocation(RestoreOG, true, obstacles, ETeleportType::TeleportPhysics))
+	if (TestCharacter->SetActorLocation(RestoreOG, false, obstacles, ETeleportType::TeleportPhysics))
 	{
 		TestCharacter->SetActorRotation(Save->Transform.GetRotation(), ETeleportType::TeleportPhysics);
-		if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
-		{
-			TestCharacter->GetCharacterMovement()->Velocity = Save->Velocity;
-		}
+		//if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
+		//{
+		//	//TestCharacter->GetCharacterMovement()->Velocity = Save->Velocity;
+		//}
 
 		//UE_LOG(LogTemp, Warning, TEXT("teleported here : %s"), *OldLocation.ToString());
 		if (!CanTP.Contains(OldLocation))
@@ -237,17 +271,19 @@ void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocat
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("failed teleport due to obstacle"));
+		UE_LOG(LogTemp, Warning, TEXT("failed teleport due to obstacle : %s"), *obstacles->GetActor()->GetActorLabel());
 		if (!CanTP.Contains(OldLocation))
 		{
 			CanTP.Add(OldLocation, false);
 			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
+			SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 
 		}
 		else
 		{
 			CanTP[OldLocation] = false;
 			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
+			SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 		}
 	}
 }
@@ -402,32 +438,48 @@ void AExploreAlgorithm::BeginPlay()
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		TestCharacter = (GetWorld()->SpawnActor<ACharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
-		GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
+		if (bcanAuto)
+		{
+			TestCharacter = (GetWorld()->SpawnActor<ACharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
 
-		CharacterController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
+			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
 
-		//timer for the fast tick which is the state saving
-		//FTimerHandle FastTimer;
-		//GetWorld()->GetTimerManager().SetTimer(FastTimer, this, &AExploreAlgorithm::RecordCurrentState, 0.1f, true);
+			//timer for the fast tick which is the state saving
+			FTimerHandle NewVisitTimer;
+			GetWorld()->GetTimerManager().SetTimer(NewVisitTimer, this, &AExploreAlgorithm::ExportVisits, 1.0f, true);
 
-		//timer for the slow tick which teleports the character to a random place
-		FTimerHandle SlowTimer;
-		GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 4.0f, true);
+			//timer for the slow tick which teleports the character to a random place
+			FTimerHandle SlowTimer;
+			GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 4.0f, true);
 
-		//timer for random input
-		FTimerHandle RandomTimer;
-		GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &AExploreAlgorithm::Randomize, 1.0f, true);
+			//timer for random input
+			FTimerHandle RandomTimer;
+			GetWorld()->GetTimerManager().SetTimer(RandomTimer, this, &AExploreAlgorithm::Randomize, 1.0f, true);
 
-		PastCell = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
+			PastCell = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
 
-		Swap = true;
-		Secondary_Input = false;
+			Swap = true;
+			Secondary_Input = false;
 
-		dirnum = 0;
-		sr = 0;
+			dirnum = 0;
+			sr = 0;
 
-		counter++;
+			counter++;
+		}
+		else
+		{
+			TestCharacter = Cast<ACharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ACharacter::StaticClass()));
+			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
+			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
+
+			//timer for the fast tick which is the state saving
+			FTimerHandle NewVisitTimer;
+			GetWorld()->GetTimerManager().SetTimer(NewVisitTimer, this, &AExploreAlgorithm::ExportVisits, 1.0f, true);
+
+
+		}
+
 		//Load in the movemeent component or whatever. 
 	}
 
@@ -446,7 +498,24 @@ void AExploreAlgorithm::BeginPlay()
 
 	T();
 	//LeastVisited();
-	
+
+	///Navmesh loading points and preloading them into the place. 
+	NavMesh = FNavigationSystem::GetCurrent<UNavigationSystemV1>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	if (IsValid(NavMesh))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Navmesh is loaded in"));
+		FNavLocation ResultLocation;
+		for (int i{ 0 }; i < 100; i++)
+		{
+			bool bSuccess = NavMesh->GetRandomPoint(ResultLocation);
+			if (bSuccess)
+			{
+				VisitCount.Add((FVector(ResultLocation)/100), 1);
+			}
+		}
+		UE_LOG(LogTemp, Warning, TEXT("random points generated"));
+	}
+	CurrentGameMode->CountTable->EmptyTable();
 }
 
 // Called every frame
@@ -454,7 +523,10 @@ void AExploreAlgorithm::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	RecordCurrentState();
-	Search();
+	if (bcanAuto)
+	{
+		Search();
+	}
 
 }
 

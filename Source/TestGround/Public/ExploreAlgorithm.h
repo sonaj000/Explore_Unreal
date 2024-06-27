@@ -13,6 +13,7 @@ class UMySaveGame;
 class ACharacter;
 class APlayerController;
 class FJsonObject;
+class UNavigationSystemV1;
 
 USTRUCT(BlueprintType, Category = "Print")
 struct FTestStruct
@@ -24,7 +25,6 @@ struct FTestStruct
 
 	UPROPERTY(EditAnywhere)
 	int counter = 2; //need uproperty to show up in json file
-
 
 };
 
@@ -50,6 +50,19 @@ struct FExplorationTable : public FTableRowBase
 
 };
 
+USTRUCT(BlueprintType)
+struct FCountTable : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere)
+	int numNewVisits;
+
+	UPROPERTY(EditAnywhere)
+	double numSeconds;
+
+};
+
 
 UCLASS()
 class TESTGROUND_API AExploreAlgorithm : public AActor
@@ -59,6 +72,9 @@ class TESTGROUND_API AExploreAlgorithm : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AExploreAlgorithm();
+
+	UPROPERTY(EditAnywhere)
+	bool bcanAuto;
 
 	UPROPERTY(EditAnywhere)
 	int NumSteps;
@@ -84,13 +100,19 @@ public:
 	TMap<FVector, bool>CanTP;
 
 	UFUNCTION()
-	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines,float LifeTime, float Thickness);
+	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines,float LifeTime, float Thickness, FColor color);
+
+	UFUNCTION()
+	void DrawAllBoxes();
 
 	UPROPERTY()
 	int counter;
 
 	UFUNCTION()
 	void ExportTable();
+
+	UPROPERTY(EditAnywhere)
+	UNavigationSystemV1* NavMesh;
 
 protected: //Algorithm Functions
 
@@ -127,6 +149,12 @@ protected: //Algorithm Functions
 
 	FVector FindLeastVisitedCell();
 
+	UPROPERTY(VisibleAnywhere)
+	int TotalNewVisits;
+
+	UFUNCTION()
+	void ExportVisits();
+
 private: //Save State
 	UFUNCTION()
 	UMySaveGame* GetStateAsSave();
@@ -157,7 +185,6 @@ public:
 
 	UFUNCTION(Exec)
 	void T();
-
 
 protected:
 	// Called when the game starts or when spawned

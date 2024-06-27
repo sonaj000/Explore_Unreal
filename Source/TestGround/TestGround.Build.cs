@@ -8,7 +8,7 @@ public class TestGround : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput","OnlineSubsystem","OnlineSubsystemUtils", "UMG", "Json", "JsonUtilities"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput","OnlineSubsystem","OnlineSubsystemUtils", "UMG", "Json", "JsonUtilities", "NavigationSystem" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { "SQLiteCore", "SQLiteSupport" });
     }

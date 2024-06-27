@@ -34,6 +34,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data Analysis")
 	UDataTable* PlayerTable;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data Analysis")
+	UDataTable* CountTable;
+
 public:
 	UFUNCTION()
 	virtual void Tick(float DeltaSeconds) override;
@@ -45,6 +48,12 @@ public:
 	void ExportData();
 
 	virtual void StartPlay() override;
+
+	UPROPERTY(EditAnywhere, Category = "Character")
+	TSubclassOf<ACharacter>CharacterClass; //the character selection.
+
+	UFUNCTION(Exec)
+	void P();
 
 };
 

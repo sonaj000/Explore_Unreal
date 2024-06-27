@@ -38,6 +38,11 @@ void ATestGroundGameMode::InitGame(const FString& MapName, const FString& Option
 		UE_LOG(LogTemp, Warning, TEXT("valid table"));
 	}
 
+	if (CountTable)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("valid count table"));
+	}
+
 }
 
 void ATestGroundGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -86,7 +91,11 @@ void ATestGroundGameMode::ExportData()
 	FString MyFilePath = FPaths::ProjectContentDir(); //same thing as above delete later
 	MyFilePath.Append(TEXT("TestData2.csv")); //change this out to whatever csv file you are using for the data. 
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile(); 
-
+	/// Visit Table Vizualization
+	FString VisitFile = FPaths::ProjectContentDir(); //same thing as above delete later
+	VisitFile.Append(TEXT("NewVisit.csv")); //change this out to whatever csv file you are using for the data. 
+	IPlatformFile& VF = FPlatformFileManager::Get().GetPlatformFile();
+	///////////////
 	if (FileManager.FileExists(*MyFilePath)) //check if the file exists
 	{
 		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File found!"));
@@ -104,12 +113,48 @@ void ATestGroundGameMode::ExportData()
 		FFileHelper::SaveStringToFile(TableString, *MyFilePath); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
 		UE_LOG(LogTemp, Warning, TEXT("we loaded correctly"));
 	}
+	////////////
+	if (VF.FileExists(*VisitFile)) //check if the file exists
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File found!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File not found!"));
+	}
+	FString VisitString;
+	if (CountTable != nullptr)
+	{
+		VisitString = CountTable->GetTableAsCSV();
+		FFileHelper::SaveStringToFile(VisitString, *VisitFile); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
+		UE_LOG(LogTemp, Warning, TEXT("we loaded visit correctly"));
+	}
 }
 
 void ATestGroundGameMode::StartPlay()
 {
 	Super::StartPlay();
 	UE_LOG(LogTemp, Warning, TEXT("called beginplayt on all actors"));
+}
+
+void ATestGroundGameMode::P()
+{
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ATestGroundCharacter* Po = Cast<ATestGroundCharacter>(GetWorld()->SpawnActor<ACharacter>(CharacterClass, MCharacter->GetActorLocation() + FVector(200,0,0), FRotator::ZeroRotator, SpawnParams));
+	
+	APlayerController* tp = GetWorld()->GetFirstPlayerController();
+	tp->UnPossess();
+
+
+	Po->AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	Po->AutoPossessPlayer = EAutoReceiveInput::Player0;
+
+	tp->SetPawn(Po);
+	tp->Possess(Po);
+	Po->EnableInput(tp);
+	//Po->BeginPlay();
 }
 
 
