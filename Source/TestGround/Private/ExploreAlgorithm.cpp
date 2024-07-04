@@ -26,6 +26,7 @@ AExploreAlgorithm::AExploreAlgorithm()
 	PrimaryActorTick.bCanEverTick = true;
 	TotalNewVisits = 0;
 	bcanAuto = true;
+	bConfine = true;
 }
 
 void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness, FColor color)
@@ -38,16 +39,9 @@ void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines
 
 void AExploreAlgorithm::DrawAllBoxes()
 {
-	for (auto& box : CanTP)
+	for (auto& box : VisitCount)
 	{
-		if (box.Value == true)
-		{
-			SpawnDebugBoxForCell(box.Key, false, 5.0, 1.0, FColor::Blue);
-		}
-		else
-		{
-			SpawnDebugBoxForCell(box.Key, false, 5.0, 1.0, FColor::Red);
-		}
+		SpawnDebugBoxForCell(box.Key, true, 5.0, 1.0, FColor::Black);
 	}
 }
 
@@ -459,6 +453,8 @@ void AExploreAlgorithm::BeginPlay()
 
 			PastCell = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
 
+			StartingPoint = FVector(-1900,2500,200);
+
 			Swap = true;
 			Secondary_Input = false;
 
@@ -477,6 +473,9 @@ void AExploreAlgorithm::BeginPlay()
 			FTimerHandle NewVisitTimer;
 			GetWorld()->GetTimerManager().SetTimer(NewVisitTimer, this, &AExploreAlgorithm::ExportVisits, 1.0f, true);
 
+			PastCell = FVector(GetActorLocation().X / 100, GetActorLocation().Y / 100, GetActorLocation().Z / 100);
+
+			StartingPoint = FVector(-1900, 2500, 200);
 
 		}
 
@@ -502,7 +501,17 @@ void AExploreAlgorithm::BeginPlay()
 	///Navmesh loading points and preloading them into the place. 
 	NavMesh = FNavigationSystem::GetCurrent<UNavigationSystemV1>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
 	if (IsValid(NavMesh))
-	{
+	{	/////get navmesh bounds and extent
+		TSet<FNavigationBounds>bounds = NavMesh->GetNavigationBounds();
+		FNavigationBounds area;
+		for (const FNavigationBounds fnb : bounds)
+		{
+			area = fnb;
+		}
+		area.AreaBox.GetCenterAndExtents(BoundsCenter,BoundsExtent);
+		UE_LOG(LogTemp, Warning, TEXT("box extents are : %s"), *BoundsExtent.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("box center  are : %s"), *BoundsCenter.ToString());
+		//////////get random points from the navmesh
 		UE_LOG(LogTemp, Warning, TEXT("Navmesh is loaded in"));
 		FNavLocation ResultLocation;
 		for (int i{ 0 }; i < 100; i++)
@@ -511,10 +520,12 @@ void AExploreAlgorithm::BeginPlay()
 			if (bSuccess)
 			{
 				VisitCount.Add((FVector(ResultLocation)/100), 1);
+				CanTP.Add((FVector(ResultLocation) / 100), true);
 			}
 		}
-		UE_LOG(LogTemp, Warning, TEXT("random points generated"));
+		FVector CurrLoc = TestCharacter->GetActorLocation();
 	}
+	DrawAllBoxes();
 	CurrentGameMode->CountTable->EmptyTable();
 }
 
@@ -526,6 +537,16 @@ void AExploreAlgorithm::Tick(float DeltaTime)
 	if (bcanAuto)
 	{
 		Search();
+	}
+	if (bConfine)
+	{
+		FVector CurrLoc = TestCharacter->GetActorLocation();
+		if (!(CurrLoc.X < BoundsExtent.X + BoundsCenter.X && BoundsCenter.X - BoundsExtent.X < CurrLoc.X) || !(CurrLoc.Y < BoundsExtent.Y + BoundsCenter.Y && BoundsCenter.Y - BoundsExtent.Y < CurrLoc.Y) || !(CurrLoc.Z < BoundsExtent.Z + BoundsCenter.Z && BoundsCenter.Z - BoundsExtent.Z < CurrLoc.Z))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StartingPoint: %s"), *VisitCount.begin().Key().ToString());
+			TestCharacter->SetActorLocation(VisitCount.begin().Key()*100);
+
+		}
 	}
 
 }

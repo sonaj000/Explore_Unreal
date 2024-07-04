@@ -112,7 +112,16 @@ public:
 	void ExportTable();
 
 	UPROPERTY(EditAnywhere)
+	bool bConfine;
+
+	UPROPERTY(EditAnywhere)
 	UNavigationSystemV1* NavMesh;
+
+	UPROPERTY(VisibleAnywhere)
+	FVector BoundsExtent;
+
+	UPROPERTY(VisibleAnywhere)
+	FVector BoundsCenter;
 
 protected: //Algorithm Functions
 
@@ -143,6 +152,9 @@ protected: //Algorithm Functions
 
 	UPROPERTY()
 	FVector PastCell;
+
+	UPROPERTY()
+	FVector StartingPoint;
 
 	UPROPERTY()
 	TArray<FVector>Directions;
