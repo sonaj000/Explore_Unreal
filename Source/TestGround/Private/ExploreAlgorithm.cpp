@@ -138,7 +138,7 @@ void AExploreAlgorithm::RecordCurrentState()
 		else
 		{
 			VisitCount[cell]++;
-			//UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[cell]);
+			UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[cell]);
 		}
 		/////
 		if (!CanTP.Contains(cell))
@@ -183,12 +183,12 @@ void AExploreAlgorithm::Teleport()
 		TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
 		UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
 		RestoreStateFromSave(selectedState,selectedCell);
-		UE_LOG(LogTemp, Warning, TEXT("///teleport work and the visit count of this place is: %d"), VisitCount[selectedCell]);
 		VisitCount[selectedCell]++;
+		UE_LOG(LogTemp, Warning, TEXT("///teleport work and the visit count of this place is: %d"), VisitCount[selectedCell]);
 	}
 	else
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("///no work"));
+		UE_LOG(LogTemp, Warning, TEXT("///no work"));
 	}
 	
 }
@@ -207,17 +207,17 @@ FVector AExploreAlgorithm::FindLeastVisitedCell()
 		 return A < B; // sort by int value in the map
 	});
 
-	for (auto& value : VisitCount)
-	{
-		if (CanTP.Contains(value.Key))
-		{
-			if (CanTP[value.Key] != false)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("this is the value: %d"), value.Value);
-				return value.Key;
-			}
-		}
-	}
+	//for (auto& value : VisitCount)
+	//{
+	//	if (CanTP.Contains(value.Key))
+	//	{
+	//		if (CanTP[value.Key] != false)
+	//		{
+	//			UE_LOG(LogTemp, Warning, TEXT("this is the value: %d"), value.Value);
+	//			return value.Key;
+	//		}
+	//	}
+	//}
 
 	return VisitCount.begin().Key();
 
@@ -432,6 +432,10 @@ void AExploreAlgorithm::BeginPlay()
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+		//timer for the slow tick which teleports the character to a random place
+		FTimerHandle SlowTimer;
+		GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 5.0f, true);
+
 		if (bcanAuto)
 		{
 			TestCharacter = (GetWorld()->SpawnActor<ACharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
@@ -442,10 +446,6 @@ void AExploreAlgorithm::BeginPlay()
 			//timer for the fast tick which is the state saving
 			FTimerHandle NewVisitTimer;
 			GetWorld()->GetTimerManager().SetTimer(NewVisitTimer, this, &AExploreAlgorithm::ExportVisits, 1.0f, true);
-
-			//timer for the slow tick which teleports the character to a random place
-			FTimerHandle SlowTimer;
-			GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 4.0f, true);
 
 			//timer for random input
 			FTimerHandle RandomTimer;
@@ -521,6 +521,8 @@ void AExploreAlgorithm::BeginPlay()
 			{
 				VisitCount.Add((FVector(ResultLocation)/100), 1);
 				CanTP.Add((FVector(ResultLocation) / 100), true);
+				StatesForCells.Add((FVector(ResultLocation) / 100), TArray<UMySaveGame*>());
+				StatesForCells[(FVector(ResultLocation) / 100)].Add(GetStateAsSave());
 			}
 		}
 		FVector CurrLoc = TestCharacter->GetActorLocation();
