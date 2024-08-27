@@ -27,6 +27,53 @@ AExploreAlgorithm::AExploreAlgorithm()
 	TotalNewVisits = 0;
 	bcanAuto = true;
 	bConfine = true;
+	numSeeds = 100;
+	TimeDilation = 2.0f;
+	bEnableHeadless = false;
+	CMDParse();
+}
+
+void AExploreAlgorithm::CMDParse()
+{
+	UE_LOG(LogTemp, Warning, TEXT("PARSED THE COMMANDLINE INPUTS FROM THE BEGINNING"));
+	//headless, time dilation, numseeds to seed the thing
+	FString HeadlessValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("headless="), HeadlessValue))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is a headless value"));
+		// Convert the string to lowercase for case-insensitive comparison
+		HeadlessValue = HeadlessValue.ToLower();
+
+		// Convert string to boolean
+		if (HeadlessValue == "true")
+		{
+			bEnableHeadless = true;
+		}
+		else if (HeadlessValue == "false")
+		{
+			bEnableHeadless = false;
+		}
+
+	}
+
+	FString TimeValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("timedilation="), TimeValue))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is a timedilation value"));
+		// Convert the string to lowercase for case-insensitive comparison
+		TimeValue = TimeValue.ToLower();
+		TimeDilation = FCString::Atof(*TimeValue);
+	}
+
+	FString SeedValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("numseed="), SeedValue))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is a numseed value"));
+		// Convert the string to lowercase for case-insensitive comparison
+		SeedValue = SeedValue.ToLower();
+		numSeeds = FCString::Atoi(*SeedValue);
+	}
+
 }
 
 void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness, FColor color)
@@ -35,6 +82,11 @@ void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines
 
 	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + 50), FVector(50.0f, 50.0f, 50.0f), color, bPersistentLines, LifeTime, 0, Thickness);
 
+}
+
+void AExploreAlgorithm::FlushAllDebugs()
+{
+	UKismetSystemLibrary::FlushPersistentDebugLines(GetWorld());
 }
 
 void AExploreAlgorithm::DrawAllBoxes()
@@ -77,6 +129,38 @@ void AExploreAlgorithm::ExportTable()
 
 }
 
+void AExploreAlgorithm::NavMeshSeeding(int NumSeeds)
+{
+	///Navmesh loading points and preloading them into the place. 
+	NavMesh = FNavigationSystem::GetCurrent<UNavigationSystemV1>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
+	if (IsValid(NavMesh))
+	{	/////get navmesh bounds and extent
+		TSet<FNavigationBounds>bounds = NavMesh->GetNavigationBounds();
+		FNavigationBounds area;
+		for (const FNavigationBounds fnb : bounds)
+		{
+			area = fnb;
+		}
+		area.AreaBox.GetCenterAndExtents(BoundsCenter, BoundsExtent);
+		UE_LOG(LogTemp, Warning, TEXT("box extents are : %s"), *BoundsExtent.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("box center  are : %s"), *BoundsCenter.ToString());
+		//////////get random points from the navmesh
+		UE_LOG(LogTemp, Warning, TEXT("Navmesh is loaded in"));
+		FNavLocation ResultLocation;
+		for (int i{ 0 }; i < NumSeeds; i++)
+		{
+			bool bSuccess = NavMesh->GetRandomPoint(ResultLocation);
+			if (bSuccess)
+			{
+				VisitCount.Add((FVector(ResultLocation) / 100), 0);
+				CanTP.Add((FVector(ResultLocation) / 100), true);
+				StatesForCells.Add((FVector(ResultLocation) / 100), TArray<UMySaveGame*>());
+				StatesForCells[(FVector(ResultLocation) / 100)].Add(GetStateAsSave());
+			}
+		}
+	}
+}
+
 void AExploreAlgorithm::ExportVisits()
 {
 	FCountTable VT;
@@ -86,7 +170,7 @@ void AExploreAlgorithm::ExportVisits()
 	VT.numSeconds = UGameplayStatics::GetRealTimeSeconds(GetWorld());
 
 	CurrentGameMode->CountTable->AddRow(FName(CurrTime.Now().ToString()), VT);
-	UE_LOG(LogTemp, Warning, TEXT("ExportVisits"));
+	//UE_LOG(LogTemp, Warning, TEXT("ExportVisits"));
 }
 
 FVector AExploreAlgorithm::GetCurrentCell()
@@ -125,7 +209,7 @@ void AExploreAlgorithm::RecordCurrentState()
 		if (!StatesForCells.Contains(cell))
 		{
 			StatesForCells.Add(cell, TArray<UMySaveGame*>());
-			SpawnDebugBoxForCell(cell, true, 3.0, 1.0, FColor::Blue);
+			//SpawnDebugBoxForCell(cell, true, 3.0, 1.0, FColor::Blue);
 		}
 		StatesForCells[cell].Add(state);
 		////
@@ -138,7 +222,7 @@ void AExploreAlgorithm::RecordCurrentState()
 		else
 		{
 			VisitCount[cell]++;
-			UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[cell]);
+			//UE_LOG(LogTemp, Warning, TEXT("///visit count is %d, "), VisitCount[cell]);
 		}
 		/////
 		if (!CanTP.Contains(cell))
@@ -152,16 +236,14 @@ void AExploreAlgorithm::RecordCurrentState()
 
 void AExploreAlgorithm::Search()
 {
-	if (Swap < 6)
-	{
-		TestCharacter->AddMovementInput(Directions[dirnum]);
+
+	TestCharacter->AddMovementInput(Directions[dirnum]);
 		//TestCharacter
 		//make a new random input
-	}
 	if (Secondary_Input < 7)
 	{
 
-		if (sr == 4)
+		if (sr == 4 || sr == 3)
 		{
 			TestCharacter->Jump();
 		}
@@ -270,14 +352,14 @@ void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocat
 		{
 			CanTP.Add(OldLocation, false);
 			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
-			SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
+			//SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 
 		}
 		else
 		{
 			CanTP[OldLocation] = false;
 			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
-			SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
+			//SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 		}
 	}
 }
@@ -426,26 +508,35 @@ void AExploreAlgorithm::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	CMDParse();
+	if (bEnableHeadless)
+	{
+		if (GEngine)
+		{
+			GEngine->GameViewport->bDisableWorldRendering = true;
+			//GEngine->GameViewport->bdi
+		}
+	}
 
 	if (TestCharacter != nullptr)
 	{
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		//timer for the slow tick which teleports the character to a random place
-		FTimerHandle SlowTimer;
-		GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 5.0f, true);
-
 		if (bcanAuto)
 		{
 			TestCharacter = (GetWorld()->SpawnActor<ACharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
-
+			TestCharacter->CustomTimeDilation = TimeDilation;
 			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
 			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
 
 			//timer for the fast tick which is the state saving
 			FTimerHandle NewVisitTimer;
 			GetWorld()->GetTimerManager().SetTimer(NewVisitTimer, this, &AExploreAlgorithm::ExportVisits, 1.0f, true);
+
+			//timer for the slow tick which teleports the character to a random place
+			FTimerHandle SlowTimer;
+			GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 10.0f, true);
 
 			//timer for random input
 			FTimerHandle RandomTimer;
@@ -466,6 +557,7 @@ void AExploreAlgorithm::BeginPlay()
 		else
 		{
 			TestCharacter = Cast<ACharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ACharacter::StaticClass()));
+			TestCharacter->CustomTimeDilation = TimeDilation;
 			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
 			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
 
@@ -498,37 +590,14 @@ void AExploreAlgorithm::BeginPlay()
 	T();
 	//LeastVisited();
 
-	///Navmesh loading points and preloading them into the place. 
-	NavMesh = FNavigationSystem::GetCurrent<UNavigationSystemV1>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
-	if (IsValid(NavMesh))
-	{	/////get navmesh bounds and extent
-		TSet<FNavigationBounds>bounds = NavMesh->GetNavigationBounds();
-		FNavigationBounds area;
-		for (const FNavigationBounds fnb : bounds)
-		{
-			area = fnb;
-		}
-		area.AreaBox.GetCenterAndExtents(BoundsCenter,BoundsExtent);
-		UE_LOG(LogTemp, Warning, TEXT("box extents are : %s"), *BoundsExtent.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("box center  are : %s"), *BoundsCenter.ToString());
-		//////////get random points from the navmesh
-		UE_LOG(LogTemp, Warning, TEXT("Navmesh is loaded in"));
-		FNavLocation ResultLocation;
-		for (int i{ 0 }; i < 100; i++)
-		{
-			bool bSuccess = NavMesh->GetRandomPoint(ResultLocation);
-			if (bSuccess)
-			{
-				VisitCount.Add((FVector(ResultLocation)/100), 1);
-				CanTP.Add((FVector(ResultLocation) / 100), true);
-				StatesForCells.Add((FVector(ResultLocation) / 100), TArray<UMySaveGame*>());
-				StatesForCells[(FVector(ResultLocation) / 100)].Add(GetStateAsSave());
-			}
-		}
-		FVector CurrLoc = TestCharacter->GetActorLocation();
-	}
+	NavMeshSeeding(numSeeds);
+	FVector CurrLoc = TestCharacter->GetActorLocation();
 	DrawAllBoxes();
 	CurrentGameMode->CountTable->EmptyTable();
+	UE_LOG(LogTemp, Warning, TEXT("timedilation is set in beginplay: %d"), TimeDilation);
+	UE_LOG(LogTemp, Warning, TEXT("enableheadless in beginpaly is %s"), (bEnableHeadless ? TEXT("true") : TEXT("false")));
+	UE_LOG(LogTemp, Warning, TEXT("numseeds is set in beginplay: %d"), numSeeds);
+
 }
 
 // Called every frame

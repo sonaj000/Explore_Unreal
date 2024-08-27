@@ -115,8 +115,8 @@ void ATestGroundCharacter::BeginPlay()
 
 	nameCounter = 0;
 
-	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 2.0f); //make things run 10x faster. 
-	
+	//UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f); //make things run 10x faster. 
+	//this->CustomTimeDilation = 2.0f;
 }
 
 TArray<FVector> ATestGroundCharacter::GetCellString()

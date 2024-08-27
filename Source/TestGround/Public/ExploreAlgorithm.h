@@ -91,6 +91,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Character")
 	APlayerController* CharacterController; //the character selection.
 
+private: //command line parsing
+
+	void CMDParse();
+
 public:
 
 	TMap<FVector, TArray<UMySaveGame*>>StatesForCells;
@@ -103,6 +107,9 @@ public:
 	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines,float LifeTime, float Thickness, FColor color);
 
 	UFUNCTION()
+	void FlushAllDebugs();
+
+	UFUNCTION()
 	void DrawAllBoxes();
 
 	UPROPERTY()
@@ -113,6 +120,20 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	bool bConfine;
+
+	UPROPERTY(EditAnywhere)
+	int TimeDilation;
+
+	UPROPERTY(EditAnywhere)
+	bool bEnableHeadless;
+
+protected:
+	UFUNCTION()
+	void NavMeshSeeding(int NumSeeds);
+public:
+
+	UPROPERTY()
+	int numSeeds;
 
 	UPROPERTY(EditAnywhere)
 	UNavigationSystemV1* NavMesh;

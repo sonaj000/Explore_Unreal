@@ -88,13 +88,17 @@ void ATestGroundGameMode::Tick(float DeltaSeconds)
 
 void ATestGroundGameMode::ExportData()
 {
-	FString MyFilePath = FPaths::ProjectContentDir(); //same thing as above delete later
-	MyFilePath.Append(TEXT("TestData2.csv")); //change this out to whatever csv file you are using for the data. 
+	FString Minute = FString::FromInt(counter) + "TestData2.csv";
+
+	FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/"; //same thing as above delete later
+
+	MyFilePath.Append(Minute); //change this out to whatever csv file you are using for the data. 
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile(); 
 	/// Visit Table Vizualization
 	FString VisitFile = FPaths::ProjectContentDir(); //same thing as above delete later
 	VisitFile.Append(TEXT("NewVisit.csv")); //change this out to whatever csv file you are using for the data. 
 	IPlatformFile& VF = FPlatformFileManager::Get().GetPlatformFile();
+	counter++;
 	///////////////
 	if (FileManager.FileExists(*MyFilePath)) //check if the file exists
 	{
@@ -131,10 +135,25 @@ void ATestGroundGameMode::ExportData()
 	}
 }
 
+void ATestGroundGameMode::Draw()
+{
+	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
+	CurrAlg->DrawAllBoxes();
+}
+
+void ATestGroundGameMode::Clear()
+{
+	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
+	CurrAlg->FlushAllDebugs();
+}
+
+
 void ATestGroundGameMode::StartPlay()
 {
 	Super::StartPlay();
 	UE_LOG(LogTemp, Warning, TEXT("called beginplayt on all actors"));
+	FTimerHandle ExportTimer;
+	GetWorld()->GetTimerManager().SetTimer(ExportTimer, this, &ATestGroundGameMode::ExportData, 60.0f, true);
 }
 
 void ATestGroundGameMode::P()

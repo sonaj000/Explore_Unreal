@@ -47,6 +47,12 @@ public:
 	UFUNCTION(Exec)
 	void ExportData();
 
+	UFUNCTION(Exec)
+	void Draw();
+
+	UFUNCTION(Exec)
+	void Clear();
+
 	virtual void StartPlay() override;
 
 	UPROPERTY(EditAnywhere, Category = "Character")
@@ -54,6 +60,10 @@ public:
 
 	UFUNCTION(Exec)
 	void P();
+
+private:
+
+	int counter = 0;
 
 };
 
