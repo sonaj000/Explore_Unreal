@@ -19,6 +19,8 @@ ATestGroundGameMode::ATestGroundGameMode()
 	//this two lines help the gamemmode actually tick otherwise no work. 
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.bCanEverTick = true;
+
+	SessionName = "";
 }
 
 void ATestGroundGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -62,6 +64,7 @@ void ATestGroundGameMode::PostLogin(APlayerController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("post login set the character to a new one "));
 	}
+	CreateUniqueFolder();
 	//PlayerTable->EmptyTable();
 }
 
@@ -85,12 +88,31 @@ void ATestGroundGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 }
+FString ATestGroundGameMode::CreateUniqueFolder()
+{
+	//create a new folder per session, get the unique id first. 
+	FString FolderName = FString::Printf(TEXT("Instance_%d_%s"), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+	UE_LOG(LogTemp, Warning, TEXT("folder name is: %s"),*FolderName);
+	//get filepath to the dataanalysis folder. 
+	FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/" + FolderName + "/"; //same thing as above delete later
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	// Check if the directory already exists, if not, create it
+	if (!PlatformFile.DirectoryExists(*MyFilePath))
+	{
+		PlatformFile.CreateDirectory(*MyFilePath);
+		SessionName = MyFilePath;
+		UE_LOG(LogTemp, Warning, TEXT("session name is: %s"), *MyFilePath);
+	}
+
+	return FolderName;
+}
 
 void ATestGroundGameMode::ExportData()
 {
-	FString Minute = FString::FromInt(counter) + "TestData2.csv";
+	FString Minute = FString::FromInt(counter) + "TD.csv";
+	//FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/"; //same thing as above delete later
 
-	FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/"; //same thing as above delete later
+	FString MyFilePath = SessionName;
 
 	MyFilePath.Append(Minute); //change this out to whatever csv file you are using for the data. 
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile(); 
@@ -100,13 +122,14 @@ void ATestGroundGameMode::ExportData()
 	IPlatformFile& VF = FPlatformFileManager::Get().GetPlatformFile();
 	counter++;
 	///////////////
-	if (FileManager.FileExists(*MyFilePath)) //check if the file exists
+	if (FileManager.FileExists(*MyFilePath)) //check if the datanalysis folder exists or not
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File found!"));
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File found!:%s"), *MyFilePath);
+		
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File not found!"));
+		UE_LOG(LogTemp, Warning, TEXT("FilePaths: File not found! :%s"), *MyFilePath);
 	}
 	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
 	CurrAlg->ExportTable();
@@ -175,5 +198,6 @@ void ATestGroundGameMode::P()
 	Po->EnableInput(tp);
 	//Po->BeginPlay();
 }
+
 
 

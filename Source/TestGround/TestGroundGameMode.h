@@ -63,6 +63,11 @@ public:
 
 private:
 
+	UFUNCTION()
+	FString CreateUniqueFolder();
+
+	FString SessionName;
+
 	int counter = 0;
 
 };
