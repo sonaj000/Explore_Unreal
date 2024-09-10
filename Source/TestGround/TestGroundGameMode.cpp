@@ -90,8 +90,14 @@ void ATestGroundGameMode::Tick(float DeltaSeconds)
 }
 FString ATestGroundGameMode::CreateUniqueFolder()
 {
+	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
+	FString FolderName = FString::Printf(TEXT("Instance_%d_"), FPlatformProcess::GetCurrentProcessId());
+	if (CurrAlg)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("curralg exists"));
+		FolderName = FString::Printf(TEXT("Instance_%d_%s_%d_%d"), FPlatformProcess::GetCurrentProcessId(), CurrAlg->bEnableHeadless ? TEXT("true") : TEXT("false"),CurrAlg->TimeDilation, CurrAlg->numSeeds);
+	}
 	//create a new folder per session, get the unique id first. 
-	FString FolderName = FString::Printf(TEXT("Instance_%d_%s"), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
 	UE_LOG(LogTemp, Warning, TEXT("folder name is: %s"),*FolderName);
 	//get filepath to the dataanalysis folder. 
 	FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/" + FolderName + "/"; //same thing as above delete later
@@ -109,7 +115,7 @@ FString ATestGroundGameMode::CreateUniqueFolder()
 
 void ATestGroundGameMode::ExportData()
 {
-	FString Minute = FString::FromInt(counter) + "TD.csv";
+	FString Minute = "Minute" + FString::FromInt(counter) + ".csv";
 	//FString MyFilePath = FPaths::ProjectContentDir() + "DataAnalysis/"; //same thing as above delete later
 
 	FString MyFilePath = SessionName;

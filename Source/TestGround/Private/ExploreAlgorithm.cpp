@@ -18,6 +18,7 @@
 #include "Misc/DateTime.h"
 #include "MySaveGame.h"
 #include "NavigationSystem.h"
+#include <random>
 
 // Sets default values
 AExploreAlgorithm::AExploreAlgorithm()
@@ -30,13 +31,17 @@ AExploreAlgorithm::AExploreAlgorithm()
 	numSeeds = 100;
 	TimeDilation = 2.0f;
 	bEnableHeadless = false;
+	TeleportInterval = 5;
+	CellSize = 1.0;
+	BMStepSize = 1;
+	BMinput = FVector::ZeroVector;
 	CMDParse();
 }
 
 void AExploreAlgorithm::CMDParse()
 {
 	UE_LOG(LogTemp, Warning, TEXT("PARSED THE COMMANDLINE INPUTS FROM THE BEGINNING"));
-	//headless, time dilation, numseeds to seed the thing
+	//headless, time dilation, numseeds to seed the thing,input style,cell size
 	FString HeadlessValue;
 	if (FParse::Value(FCommandLine::Get(), TEXT("headless="), HeadlessValue))
 	{
@@ -74,13 +79,38 @@ void AExploreAlgorithm::CMDParse()
 		numSeeds = FCString::Atoi(*SeedValue);
 	}
 
+	FString InputStrategy;
+	if (FParse::Value(FCommandLine::Get(), TEXT("input_strategy="), InputStrategy))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is a valid input strategy"));
+		// Convert the string to lowercase for case-insensitive comparison
+		InputStrategy = InputStrategy.ToLower();
+		if (InputStrategy == "brownian_motion")
+		{
+			CurrentInput = InputType::brownian_motion;
+		}
+		else
+		{
+			CurrentInput = InputType::random_walk;
+		}
+	}
+
+	FString CSV;
+	if (FParse::Value(FCommandLine::Get(), TEXT("cellsize="), CSV))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("there is a cell size value"));
+		// Convert the string to lowercase for case-insensitive comparison
+		CSV = CSV.ToLower();
+		CellSize = FCString::Atof(*CSV);
+	}
+
 }
 
 void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness, FColor color)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("debug box is at: %s"), *cell.ToString());
 
-	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + 50), FVector(50.0f, 50.0f, 50.0f), color, bPersistentLines, LifeTime, 0, Thickness);
+	DrawDebugBox(GetWorld(), FVector(cell.X * 100*CellSize, cell.Y * 100 * CellSize, cell.Z * 100 * CellSize + (50*CellSize)), FVector(50.0f*CellSize,50.0f*CellSize, 50.0f*CellSize), color, bPersistentLines, LifeTime, 0, Thickness);
 
 }
 
@@ -152,10 +182,10 @@ void AExploreAlgorithm::NavMeshSeeding(int NumSeeds)
 			bool bSuccess = NavMesh->GetRandomPoint(ResultLocation);
 			if (bSuccess)
 			{
-				VisitCount.Add((FVector(ResultLocation) / 100), 0);
-				CanTP.Add((FVector(ResultLocation) / 100), true);
-				StatesForCells.Add((FVector(ResultLocation) / 100), TArray<UMySaveGame*>());
-				StatesForCells[(FVector(ResultLocation) / 100)].Add(GetStateAsSave());
+				VisitCount.Add((FVector(ResultLocation) / (100 * CellSize)), 0);
+				CanTP.Add((FVector(ResultLocation) / (100 * CellSize)), true);
+				StatesForCells.Add((FVector(ResultLocation) / (100 * CellSize)), TArray<UMySaveGame*>());
+				StatesForCells[(FVector(ResultLocation) / (100 * CellSize))].Add(GetStateAsSave());
 			}
 		}
 	}
@@ -177,10 +207,10 @@ FVector AExploreAlgorithm::GetCurrentCell()
 {
 	FVector CellR;
 	if (TestCharacter != nullptr)
-	{
-		int x = TestCharacter->GetActorLocation().X / 100;
-		int y = TestCharacter->GetActorLocation().Y / 100;
-		int z = TestCharacter->GetActorLocation().Z / 100;
+	{ 
+		int x = TestCharacter->GetActorLocation().X / (100 * CellSize);
+		int y = TestCharacter->GetActorLocation().Y / (100 * CellSize);
+		int z = TestCharacter->GetActorLocation().Z / (100 * CellSize);
 
 		if (z < 0)
 		{
@@ -234,24 +264,34 @@ void AExploreAlgorithm::RecordCurrentState()
 	}
 }
 
-void AExploreAlgorithm::Search()
+void AExploreAlgorithm::Search(float Deltatime)
 {
-
-	TestCharacter->AddMovementInput(Directions[dirnum]);
+	if (CurrentInput == InputType::random_walk)
+	{
+		TestCharacter->AddMovementInput(Directions[dirnum]);
 		//TestCharacter
 		//make a new random input
-	if (Secondary_Input < 7)
-	{
+		if (Secondary_Input < 7)
+		{
 
-		if (sr == 4 || sr == 3)
+			if (sr == 4 || sr == 3)
+			{
+				TestCharacter->Jump();
+			}
+			else
+			{
+				TestCharacter->AddMovementInput(Directions[sr]);
+			}
+
+		}
+	}
+	else if (CurrentInput == InputType::brownian_motion)
+	{
+		TestCharacter->AddMovementInput(BMinput);
+		if (BMinput.Z > 1)
 		{
 			TestCharacter->Jump();
 		}
-		else
-		{
-			TestCharacter->AddMovementInput(Directions[sr]);
-		}
-
 	}
 
 }
@@ -281,7 +321,36 @@ void AExploreAlgorithm::Randomize()
 	dirnum = rand() % 4;
 	Secondary_Input = UKismetMathLibrary::RandomIntegerInRange(0, 10);
 	sr = rand() % 5;
+
+	BMinput = BrownianMotion();
 }
+
+FVector AExploreAlgorithm::BrownianMotion()
+{
+	FVector Step = FVector(GaussianSampling(0,1), GaussianSampling(0,1), GaussianSampling(0,1));
+	UE_LOG(LogTemp, Warning, TEXT("///step is :%s"), *Step.ToString());
+	FVector WeinerResult = Step * BMStepSize;
+	return WeinerResult;
+}
+
+float AExploreAlgorithm::GaussianSampling(float mean, float variance)
+{
+	// Box-Muller transform to generate a standard normal distribution (mean = 0, variance = 1)
+	float U1 = FMath::FRand(); // Uniform random number between 0 and 1
+	float U2 = FMath::FRand(); // Uniform random number between 0 and 1
+
+	// Apply Box-Muller formula
+	float Z0 = FMath::Sqrt(-2.0f * FMath::Loge(U1)) * FMath::Cos(2.0f * PI * U2);
+
+
+	// Adjust for the desired mean and variance (standard deviation)
+	float StandardDeviation = FMath::Sqrt(variance); // Standard deviation is the square root of variance
+	float r = mean + Z0 * StandardDeviation;   // Scale Z0 by standard deviation and shift by the mean
+
+	return r; // This is a normally distributed random number
+	
+}
+
 
 FVector AExploreAlgorithm::FindLeastVisitedCell()
 {
@@ -536,7 +605,7 @@ void AExploreAlgorithm::BeginPlay()
 
 			//timer for the slow tick which teleports the character to a random place
 			FTimerHandle SlowTimer;
-			GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, 10.0f, true);
+			GetWorld()->GetTimerManager().SetTimer(SlowTimer, this, &AExploreAlgorithm::Teleport, TeleportInterval, true);
 
 			//timer for random input
 			FTimerHandle RandomTimer;
@@ -590,6 +659,7 @@ void AExploreAlgorithm::BeginPlay()
 	T();
 	//LeastVisited();
 
+
 	NavMeshSeeding(numSeeds);
 	FVector CurrLoc = TestCharacter->GetActorLocation();
 	DrawAllBoxes();
@@ -607,7 +677,7 @@ void AExploreAlgorithm::Tick(float DeltaTime)
 	RecordCurrentState();
 	if (bcanAuto)
 	{
-		Search();
+		Search(DeltaTime);
 	}
 	if (bConfine)
 	{

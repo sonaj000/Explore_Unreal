@@ -63,6 +63,12 @@ struct FCountTable : public FTableRowBase
 
 };
 
+UENUM()
+enum InputType
+{
+	random_walk,
+	brownian_motion
+};
 
 UCLASS()
 class TESTGROUND_API AExploreAlgorithm : public AActor
@@ -79,8 +85,14 @@ public:
 	UPROPERTY(EditAnywhere)
 	int NumSteps;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	int TeleportInterval;
+
+	UPROPERTY(EditAnywhere)
+	float CellSize;
+
+	UPROPERTY(EditAnywhere)
+	TEnumAsByte<InputType>CurrentInput = InputType::random_walk;
 
 	UPROPERTY(EditAnywhere, Category = "Character") 
 	TSubclassOf<ACharacter>CharacterClass; //the character selection.
@@ -152,12 +164,23 @@ protected: //Algorithm Functions
 	void RecordCurrentState();
 
 	UFUNCTION()
-	void Search();
+	void Search(float DeltaTime);
 
 	UFUNCTION()
 	void Teleport();
 
 	void Randomize();
+
+	UFUNCTION()
+	FVector BrownianMotion();
+
+	FVector BMinput;
+
+	UPROPERTY(EditAnywhere)
+	int BMStepSize;
+
+	UFUNCTION()
+	float GaussianSampling(float mean, float variance);
 
 	UPROPERTY()
 	int Swap;
