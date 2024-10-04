@@ -48,6 +48,9 @@ public:
 	void ExportData();
 
 	UFUNCTION(Exec)
+	void ImportData();
+
+	UFUNCTION(Exec)
 	void Draw();
 
 	UFUNCTION(Exec)

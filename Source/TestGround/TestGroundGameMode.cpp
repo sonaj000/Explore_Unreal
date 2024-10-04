@@ -95,7 +95,23 @@ FString ATestGroundGameMode::CreateUniqueFolder()
 	if (CurrAlg)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("curralg exists"));
-		FolderName = FString::Printf(TEXT("Instance_%d_%s_%d_%d"), FPlatformProcess::GetCurrentProcessId(), CurrAlg->bEnableHeadless ? TEXT("true") : TEXT("false"),CurrAlg->TimeDilation, CurrAlg->numSeeds);
+		FString InputS;
+		if (CurrAlg->CurrentInput == InputType::vanilla)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("parsed Vanilla"));
+			InputS = "V";  // Random Walk
+		}
+		else if (CurrAlg->CurrentInput == InputType::stateful)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("parsed statefuyl"));
+			InputS = "S";  // Guided Search
+		}
+		else if (CurrAlg->CurrentInput == InputType::brownian_motion)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("parsed brownian"));
+			InputS = "B";  // Exploration
+		}
+		FolderName = FString::Printf(TEXT("Instance_%d_%s_%d_%d_%s_%.1f"), FPlatformProcess::GetCurrentProcessId(), CurrAlg->bEnableHeadless ? TEXT("true") : TEXT("false"),CurrAlg->TimeDilation, CurrAlg->numSeeds, *InputS, CurrAlg->CellSize);
 	}
 	//create a new folder per session, get the unique id first. 
 	UE_LOG(LogTemp, Warning, TEXT("folder name is: %s"),*FolderName);
@@ -161,6 +177,46 @@ void ATestGroundGameMode::ExportData()
 		VisitString = CountTable->GetTableAsCSV();
 		FFileHelper::SaveStringToFile(VisitString, *VisitFile); //this will just immediately make a new file in the content dir with that same name as whatever u append to it. 
 		UE_LOG(LogTemp, Warning, TEXT("we loaded visit correctly"));
+	}
+}
+
+void ATestGroundGameMode::ImportData()
+{
+	AExploreAlgorithm* CurrAlg = Cast<AExploreAlgorithm>(UGameplayStatics::GetActorOfClass(GetWorld(), AExploreAlgorithm::StaticClass()));
+
+	// Define the path to the CSV file (in the Content/Data folder in this case)
+	FString FilePath = FPaths::ProjectContentDir() + TEXT("BestC.csv");
+
+	// Load the CSV file into a string
+	FString CSVString;
+	if (FFileHelper::LoadFileToString(CSVString, *FilePath))
+	{
+		UE_LOG(LogTemp, Log, TEXT("CSV file loaded successfully!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load CSV file at path: %s"), *FilePath);
+		return;
+	}
+
+	// Create a new UDataTable
+	UDataTable* DataTable = NewObject<UDataTable>();
+	DataTable->RowStruct = FExplorationTable::StaticStruct(); // Use your defined struct
+
+	// Use the CSV reader provided by Unreal to parse the string into the UDataTable
+	TArray<FString>ImportErrors = DataTable->CreateTableFromCSVString(CSVString);
+
+	if (!ImportErrors.IsEmpty())
+	{
+		for (FString i : ImportErrors)
+		{
+			UE_LOG(LogTemp, Error, TEXT("CSV Import Errors: %s"), *i);
+		}
+		
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("CSV successfully imported into DataTable!"));
 	}
 }
 

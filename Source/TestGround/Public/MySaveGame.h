@@ -32,6 +32,6 @@ public:
 	FVector Velocity;
 
 	UPROPERTY()
-	bool bBridgeVisible;
+	int BitValue;
 
 };

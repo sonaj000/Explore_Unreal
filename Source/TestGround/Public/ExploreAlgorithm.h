@@ -9,11 +9,13 @@
 #include "ExploreAlgorithm.generated.h"
 
 class ATestGroundGameMode;
+class ATestGroundCharacter;
 class UMySaveGame;
 class ACharacter;
 class APlayerController;
 class FJsonObject;
 class UNavigationSystemV1;
+class UBoxComponent;
 
 USTRUCT(BlueprintType, Category = "Print")
 struct FTestStruct
@@ -66,7 +68,8 @@ struct FCountTable : public FTableRowBase
 UENUM()
 enum InputType
 {
-	random_walk,
+	vanilla,
+	stateful,
 	brownian_motion
 };
 
@@ -92,13 +95,16 @@ public:
 	float CellSize;
 
 	UPROPERTY(EditAnywhere)
-	TEnumAsByte<InputType>CurrentInput = InputType::random_walk;
+	bool bNoHTP;
+
+	UPROPERTY(EditAnywhere)
+	TEnumAsByte<InputType>CurrentInput;
 
 	UPROPERTY(EditAnywhere, Category = "Character") 
 	TSubclassOf<ACharacter>CharacterClass; //the character selection.
 
 	UPROPERTY(EditAnywhere, Category = "Character")
-	ACharacter* TestCharacter; //the character selection.
+	ATestGroundCharacter* TestCharacter; //the character selection.
 
 	UPROPERTY(EditAnywhere, Category = "Character")
 	APlayerController* CharacterController; //the character selection.
@@ -142,9 +148,13 @@ public:
 protected:
 	UFUNCTION()
 	void NavMeshSeeding(int NumSeeds);
+
+	UPROPERTY(EditAnywhere, Category = "Bounds")
+	UBoxComponent* ConfineBounds;
+
 public:
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	int numSeeds;
 
 	UPROPERTY(EditAnywhere)
@@ -170,6 +180,15 @@ protected: //Algorithm Functions
 	void Teleport();
 
 	void Randomize();
+
+	UFUNCTION()
+	int Vanilla();
+
+	UFUNCTION()
+	int Stateful();
+
+	UPROPERTY()
+	int bitvalue;
 
 	UFUNCTION()
 	FVector BrownianMotion();

@@ -18,12 +18,17 @@
 #include "Misc/DateTime.h"
 #include "MySaveGame.h"
 #include "NavigationSystem.h"
-#include <random>
+#include "InputActionValue.h"
+#include "TestGround/TestGroundCharacter.h"
+#include "Components/BoxComponent.h"
+
 
 // Sets default values
 AExploreAlgorithm::AExploreAlgorithm()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	ConfineBounds = CreateDefaultSubobject<UBoxComponent>(TEXT("Confine Bounds"));
+
 	PrimaryActorTick.bCanEverTick = true;
 	TotalNewVisits = 0;
 	bcanAuto = true;
@@ -35,6 +40,9 @@ AExploreAlgorithm::AExploreAlgorithm()
 	CellSize = 1.0;
 	BMStepSize = 1;
 	BMinput = FVector::ZeroVector;
+	CurrentInput = InputType::vanilla;
+	bitvalue = rand() % (1 << 5);
+	bNoHTP = false;
 	CMDParse();
 }
 
@@ -87,11 +95,18 @@ void AExploreAlgorithm::CMDParse()
 		InputStrategy = InputStrategy.ToLower();
 		if (InputStrategy == "brownian_motion")
 		{
+			UE_LOG(LogTemp, Warning, TEXT("is brownian"));
 			CurrentInput = InputType::brownian_motion;
+		}
+		else if (InputStrategy == "stateful")
+		{
+			UE_LOG(LogTemp, Warning, TEXT("is stateful"));
+			CurrentInput = InputType::stateful;
 		}
 		else
 		{
-			CurrentInput = InputType::random_walk;
+			UE_LOG(LogTemp, Warning, TEXT("is vanilla"));
+			CurrentInput = InputType::vanilla;
 		}
 	}
 
@@ -110,7 +125,7 @@ void AExploreAlgorithm::SpawnDebugBoxForCell(FVector cell, bool bPersistentLines
 {
 	//UE_LOG(LogTemp, Warning, TEXT("debug box is at: %s"), *cell.ToString());
 
-	DrawDebugBox(GetWorld(), FVector(cell.X * 100*CellSize, cell.Y * 100 * CellSize, cell.Z * 100 * CellSize + (50*CellSize)), FVector(50.0f*CellSize,50.0f*CellSize, 50.0f*CellSize), color, bPersistentLines, LifeTime, 0, Thickness);
+	DrawDebugBox(GetWorld(), FVector(cell.X * 100, cell.Y * 100, cell.Z * 100 + (50)), FVector(50.0f,50.0f, 50.0f), color, bPersistentLines, LifeTime, 0, Thickness);
 
 }
 
@@ -171,9 +186,9 @@ void AExploreAlgorithm::NavMeshSeeding(int NumSeeds)
 		{
 			area = fnb;
 		}
-		area.AreaBox.GetCenterAndExtents(BoundsCenter, BoundsExtent);
-		UE_LOG(LogTemp, Warning, TEXT("box extents are : %s"), *BoundsExtent.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("box center  are : %s"), *BoundsCenter.ToString());
+		//area.AreaBox.GetCenterAndExtents(BoundsCenter, BoundsExtent);
+		//UE_LOG(LogTemp, Warning, TEXT("box extents are : %s"), *BoundsExtent.ToString());
+		//UE_LOG(LogTemp, Warning, TEXT("box center  are : %s"), *BoundsCenter.ToString());
 		//////////get random points from the navmesh
 		UE_LOG(LogTemp, Warning, TEXT("Navmesh is loaded in"));
 		FNavLocation ResultLocation;
@@ -182,13 +197,15 @@ void AExploreAlgorithm::NavMeshSeeding(int NumSeeds)
 			bool bSuccess = NavMesh->GetRandomPoint(ResultLocation);
 			if (bSuccess)
 			{
-				VisitCount.Add((FVector(ResultLocation) / (100 * CellSize)), 0);
-				CanTP.Add((FVector(ResultLocation) / (100 * CellSize)), true);
-				StatesForCells.Add((FVector(ResultLocation) / (100 * CellSize)), TArray<UMySaveGame*>());
-				StatesForCells[(FVector(ResultLocation) / (100 * CellSize))].Add(GetStateAsSave());
+				VisitCount.Add((FVector(ResultLocation) / (100)), 0);
+				CanTP.Add((FVector(ResultLocation) / (100)), true);
+				StatesForCells.Add((FVector(ResultLocation) / (100)), TArray<UMySaveGame*>());
+				StatesForCells[(FVector(ResultLocation) / (100))].Add(GetStateAsSave());
 			}
 		}
 	}
+	BoundsExtent = ConfineBounds->GetScaledBoxExtent();
+	BoundsCenter = GetActorLocation();
 }
 
 void AExploreAlgorithm::ExportVisits()
@@ -208,9 +225,9 @@ FVector AExploreAlgorithm::GetCurrentCell()
 	FVector CellR;
 	if (TestCharacter != nullptr)
 	{ 
-		int x = TestCharacter->GetActorLocation().X / (100 * CellSize);
-		int y = TestCharacter->GetActorLocation().Y / (100 * CellSize);
-		int z = TestCharacter->GetActorLocation().Z / (100 * CellSize);
+		int x = TestCharacter->GetActorLocation().X / (100);
+		int y = TestCharacter->GetActorLocation().Y / (100);
+		int z = TestCharacter->GetActorLocation().Z / (100);
 
 		if (z < 0)
 		{
@@ -266,28 +283,44 @@ void AExploreAlgorithm::RecordCurrentState()
 
 void AExploreAlgorithm::Search(float Deltatime)
 {
-	if (CurrentInput == InputType::random_walk)
+	const int F = 1 << 0;  // 0001 in binary, represents "up"
+	const int B = 1 << 1;  // 0010 in binary, represents "right"
+	const int R = 1 << 2;  // 0100 in binary, represents "left"
+	const int L = 1 << 3;  // 1000 in binary, represents "down"
+	const int J = 1 << 4;
+
+	if (CurrentInput == InputType::vanilla || CurrentInput == InputType::stateful)
 	{
-		TestCharacter->AddMovementInput(Directions[dirnum]);
-		//TestCharacter
-		//make a new random input
-		if (Secondary_Input < 7)
+		if (bitvalue & F)
 		{
-
-			if (sr == 4 || sr == 3)
-			{
-				TestCharacter->Jump();
-			}
-			else
-			{
-				TestCharacter->AddMovementInput(Directions[sr]);
-			}
-
+			FInputActionValue InputValue(FVector(0.0, -1.0, 0.0f));
+			TestCharacter->Move(InputValue);
 		}
+		if (bitvalue & B)
+		{
+			FInputActionValue InputValue(FVector(0.0, 1.0f, 0.0f));
+			TestCharacter->Move(InputValue);
+		}
+		if (bitvalue & R)
+		{
+			FInputActionValue InputValue(FVector(1.0, 0.0, 0.0f));
+			TestCharacter->Move(InputValue);
+		}
+		if (bitvalue & L)
+		{
+			FInputActionValue InputValue(FVector(-1.0, 0.0, 0.0f));
+			TestCharacter->Move(InputValue);
+		}
+		if (bitvalue & L)
+		{
+			TestCharacter->Jump();
+		}
+
 	}
 	else if (CurrentInput == InputType::brownian_motion)
 	{
-		TestCharacter->AddMovementInput(BMinput);
+		FInputActionValue InputValue(BMinput);
+		TestCharacter->Move(InputValue);
 		if (BMinput.Z > 1)
 		{
 			TestCharacter->Jump();
@@ -298,12 +331,28 @@ void AExploreAlgorithm::Search(float Deltatime)
 
 void AExploreAlgorithm::Teleport()
 {
-	FVector selectedCell = FindLeastVisitedCell();
-
+	FVector selectedCell;
+	if (!bNoHTP) //we want a heuristic
+	{
+		UE_LOG(LogTemp, Warning, TEXT("///heuristic"));
+		selectedCell = FindLeastVisitedCell();
+	}
+	else
+	{
+		TArray<FVector>keys;
+		VisitCount.GetKeys(keys);
+		selectedCell = keys[FMath::RandRange(0, keys.Num() - 1)];
+		UE_LOG(LogTemp, Warning, TEXT("/// no heuristic"));
+	}
 	if (StatesForCells.Contains(selectedCell)) 
 	{
 		TArray<UMySaveGame*>StateArray = StatesForCells[selectedCell];
-		UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
+		UMySaveGame* selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)]; 
+		if (selectedState == nullptr)
+		{
+			StateArray.Remove(selectedState);
+			selectedState = StateArray[FMath::RandRange(0, StateArray.Num() - 1)];
+		}
 		RestoreStateFromSave(selectedState,selectedCell);
 		VisitCount[selectedCell]++;
 		UE_LOG(LogTemp, Warning, TEXT("///teleport work and the visit count of this place is: %d"), VisitCount[selectedCell]);
@@ -317,12 +366,20 @@ void AExploreAlgorithm::Teleport()
 
 void AExploreAlgorithm::Randomize()
 {
-	Swap = UKismetMathLibrary::RandomIntegerInRange(0,10);
-	dirnum = rand() % 4;
-	Secondary_Input = UKismetMathLibrary::RandomIntegerInRange(0, 10);
-	sr = rand() % 5;
-
+	Vanilla();
 	BMinput = BrownianMotion();
+}
+
+int AExploreAlgorithm::Vanilla()
+{
+	bitvalue = rand() % (1 << 5);
+	return bitvalue;
+}
+
+int AExploreAlgorithm::Stateful()
+{
+	bitvalue ^= (1 << (rand() % 5));
+	return bitvalue;
 }
 
 FVector AExploreAlgorithm::BrownianMotion()
@@ -383,6 +440,7 @@ UMySaveGame* AExploreAlgorithm::GetStateAsSave()
 	if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
 	{
 		GameData->Velocity = TestCharacter->GetVelocity();
+		GameData->BitValue = bitvalue;
 	}
 
 	return GameData;
@@ -396,6 +454,7 @@ void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocat
 	if (TestCharacter->SetActorLocation(RestoreOG, false, obstacles, ETeleportType::TeleportPhysics))
 	{
 		TestCharacter->SetActorRotation(Save->Transform.GetRotation(), ETeleportType::TeleportPhysics);
+		bitvalue = Save->BitValue;
 		//if (!TestCharacter->GetCharacterMovement()->Velocity.ContainsNaN())
 		//{
 		//	//TestCharacter->GetCharacterMovement()->Velocity = Save->Velocity;
@@ -575,9 +634,9 @@ void AExploreAlgorithm::T()
 void AExploreAlgorithm::BeginPlay()
 {
 	Super::BeginPlay();
+	CMDParse();
 
 	CurrentGameMode = Cast<ATestGroundGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-	CMDParse();
 	if (bEnableHeadless)
 	{
 		if (GEngine)
@@ -594,7 +653,7 @@ void AExploreAlgorithm::BeginPlay()
 
 		if (bcanAuto)
 		{
-			TestCharacter = (GetWorld()->SpawnActor<ACharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
+			TestCharacter = (GetWorld()->SpawnActor<ATestGroundCharacter>(CharacterClass, this->GetActorLocation(), FRotator::ZeroRotator, SpawnParams));
 			TestCharacter->CustomTimeDilation = TimeDilation;
 			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
 			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
@@ -625,7 +684,7 @@ void AExploreAlgorithm::BeginPlay()
 		}
 		else
 		{
-			TestCharacter = Cast<ACharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ACharacter::StaticClass()));
+			TestCharacter = Cast<ATestGroundCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), ACharacter::StaticClass()));
 			TestCharacter->CustomTimeDilation = TimeDilation;
 			GetWorld()->GetFirstPlayerController()->SetPawn(TestCharacter);
 			GetWorld()->GetFirstPlayerController()->Possess(TestCharacter);
@@ -645,20 +704,9 @@ void AExploreAlgorithm::BeginPlay()
 
 	VisitCount.Add(PastCell, 1);
 
-	//add the random search. 
-	FVector Forward = FVector(0.0, -1.0, 0.0f);
-	FVector Backward = FVector(0.0, 1.0f, 0.0f);
-	FVector Right = FVector(1.0, 0.0, 0.0f);
-	FVector Left = FVector(-1.0, 0.0, 0.0f);
-
-	Directions.Add(Forward);
-	Directions.Add(Backward);
-	Directions.Add(Right);
-	Directions.Add(Left);
+	Directions.Add(FVector(1, 0, 0));
 
 	T();
-	//LeastVisited();
-
 
 	NavMeshSeeding(numSeeds);
 	FVector CurrLoc = TestCharacter->GetActorLocation();
