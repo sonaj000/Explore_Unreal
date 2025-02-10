@@ -7,7 +7,7 @@
 </h1>
     
 <p style="color: white;"> 
-    <span style="font-size: large;">Explore is a machine playtesting plugin to help developers and students test their newly created levels in Unreal</span>
+    <span style="font-size: large;">Explore is a machine playtesting plugin to help developers and students test for level designs or character movement bugs in Unreal Engine 5</span>
 </p>
 
 <!-- Not really sure what else to put on my website so far???-->
@@ -15,7 +15,6 @@
 <img src="Slice.png" alt="Example Showcase" width = "600" height = "600">
 
 <p style="color:white;">Example showcase of the algorithm running through an example level</p>
-
 
 
 </hmtl>
