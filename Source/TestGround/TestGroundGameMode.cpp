@@ -103,7 +103,7 @@ FString ATestGroundGameMode::CreateUniqueFolder()
 		}
 		else if (CurrAlg->CurrentInput == InputType::stateful)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("parsed statefuyl"));
+			UE_LOG(LogTemp, Warning, TEXT("parsed stateful"));
 			InputS = "S";  // Guided Search
 		}
 		else if (CurrAlg->CurrentInput == InputType::brownian_motion)

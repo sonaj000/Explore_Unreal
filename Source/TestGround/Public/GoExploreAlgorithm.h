@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Engine/DataTable.h"
+#include "GoExploreAlgorithm.generated.h"
 
-#include "ExploreAlgorithm.generated.h"
 
 class ATestGroundGameMode;
 class ATestGroundCharacter;
@@ -17,9 +16,8 @@ class FJsonObject;
 class UNavigationSystemV1;
 class UBoxComponent;
 
-
 USTRUCT(BlueprintType)
-struct FExplorationTable : public FTableRowBase
+struct FExplorationTable : public FTableRowBase //Datatable for player location need to include velocity some time later. 
 {
 	GENERATED_BODY()
 
@@ -34,9 +32,6 @@ struct FExplorationTable : public FTableRowBase
 
 	UPROPERTY(EditAnywhere)
 	int VisitCount;
-
-	UPROPERTY(EditAnywhere)
-	bool bCanTeleport;
 
 };
 
@@ -60,35 +55,40 @@ enum InputType
 	stateful,
 	brownian_motion
 };
+UENUM()
+enum Teleportation_Strategy
+{
+	Vanilla,
+	Min_Visit,
+	Neural_Network
+};
+
 
 UCLASS()
-class TESTGROUND_API AExploreAlgorithm : public AActor
+class TESTGROUND_API AGoExploreAlgorithm : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AExploreAlgorithm();
+	AGoExploreAlgorithm();
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere) //are we running the algorithmn
 	bool bcanAuto;
 
-	UPROPERTY(EditAnywhere)
-	int NumSteps;
-
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere) //how many seconds per teleporting
 	int TeleportInterval;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere) //mapping states to cell size
 	float CellSize;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere) //teleport with heuristic or not
 	bool bNoHTP;
 
 	UPROPERTY(EditAnywhere)
 	TEnumAsByte<InputType>CurrentInput;
 
-	UPROPERTY(EditAnywhere, Category = "Character") 
+	UPROPERTY(EditAnywhere, Category = "Character")
 	TSubclassOf<ACharacter>CharacterClass; //the character selection.
 
 	UPROPERTY(EditAnywhere, Category = "Character")
@@ -99,18 +99,15 @@ public:
 
 private: //command line parsing
 
-	void CMDParse();
+	void CMDParse(); //parsing the bash script
 
 public:
-
 	TMap<FVector, TArray<UMySaveGame*>>StatesForCells;
 
 	TMap<FVector, int>VisitCount;
 
-	TMap<FVector, bool>CanTP;
-
 	UFUNCTION()
-	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines,float LifeTime, float Thickness, FColor color);
+	void SpawnDebugBoxForCell(FVector cell, bool bPersistentLines, float LifeTime, float Thickness, FColor color);
 
 	UFUNCTION()
 	void FlushAllDebugs();
@@ -132,14 +129,12 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	bool bEnableHeadless;
-
 protected:
 	UFUNCTION()
 	void NavMeshSeeding(int NumSeeds);
 
 	UPROPERTY(EditAnywhere, Category = "Bounds")
 	UBoxComponent* ConfineBounds;
-
 public:
 
 	UPROPERTY(EditAnywhere)
@@ -153,9 +148,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere)
 	FVector BoundsCenter;
-
-protected: //Algorithm Functions
-
+protected:
 	UFUNCTION()
 	FVector GetCurrentCell();
 
@@ -228,15 +221,12 @@ private: //Save State
 	UPROPERTY()
 	ATestGroundGameMode* CurrentGameMode;
 
-	
 public:
 	UFUNCTION(BlueprintCallable, Category = "Read Write File")
 	static FString ReadStringFromFile(FString FilePath, bool& bOutSuccess, FString& OutInfoMessage);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Read Write File")
 	static void WriteStringToFile(FString FilePath, FString String, bool& bOutSuccess, FString& OutInfoMessage);
-
-
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -59,27 +59,32 @@ void ADebugger::DrawDebuggers()
 				int32 InstanceIndex = InstancedMesh->AddInstance(Transform);
 				if (Row->InputStrategy == "Both")
 				{
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 0.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 1.0f);
 					InstancedMesh->SetCustomDataValue(InstanceIndex, 1, 0.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 1.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 0.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 3, 1.0f);
+
+				}
+				else if (Row->InputStrategy == "Go-Explore")
+				{
+
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 0.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 1, 1.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 0.0f);
 					InstancedMesh->SetCustomDataValue(InstanceIndex, 3, 0.05f);
 
 				}
 				else if (Row->InputStrategy == "Manual")
 				{
-
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 1.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 0.0f);
 					InstancedMesh->SetCustomDataValue(InstanceIndex, 1, 0.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 0.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 3, 0.1f);
-
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 1.0f);
+					InstancedMesh->SetCustomDataValue(InstanceIndex, 3, 0.2f);
 				}
 				else
 				{
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 0, 0.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 1, 1.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 2, 0.0f);
-					InstancedMesh->SetCustomDataValue(InstanceIndex, 3, 0.1f);
+					UE_LOG(LogTemp, Warning, TEXT("oh yeah this was none of the above"));
+
 				}
 
 			}

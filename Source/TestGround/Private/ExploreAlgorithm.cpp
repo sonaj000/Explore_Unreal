@@ -311,7 +311,7 @@ void AExploreAlgorithm::Search(float Deltatime)
 			FInputActionValue InputValue(FVector(-1.0, 0.0, 0.0f));
 			TestCharacter->Move(InputValue);
 		}
-		if (bitvalue & L)
+		if (bitvalue & J)
 		{
 			TestCharacter->Jump();
 		}
@@ -464,13 +464,11 @@ void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocat
 		if (!CanTP.Contains(OldLocation))
 		{
 			CanTP.Add(OldLocation, true);
-			//UE_LOG(LogTemp, Warning, TEXT("///added"));
 
 		}
 		else
 		{
 			CanTP[OldLocation] = true;
-			//UE_LOG(LogTemp, Warning, TEXT("///is already in"));
 		}
 	}
 	else
@@ -479,15 +477,11 @@ void AExploreAlgorithm::RestoreStateFromSave(UMySaveGame* Save, FVector OldLocat
 		if (!CanTP.Contains(OldLocation))
 		{
 			CanTP.Add(OldLocation, false);
-			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
-			//SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 
 		}
 		else
 		{
 			CanTP[OldLocation] = false;
-			//UE_LOG(LogTemp, Warning, TEXT("///it is false"));
-			//SpawnDebugBoxForCell(OldLocation, true, 3.0, 1.0, FColor::Red);
 		}
 	}
 }
@@ -537,98 +531,6 @@ void AExploreAlgorithm::WriteStringToFile(FString FilePath, FString String, bool
 
 }
 
-TSharedPtr<FJsonObject> AExploreAlgorithm::ReadJson(FString JsonFilePath, bool& bOutSuccess, FString& OutInfoMessage)
-{
-	FString JsonString = ReadStringFromFile(JsonFilePath, bOutSuccess, OutInfoMessage);
-	if (!bOutSuccess)
-	{
-		return nullptr;
-	}
-
-	TSharedPtr<FJsonObject> JsonObject;
-
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(JsonString), JsonObject))
-	{
-		bOutSuccess = false;
-		OutInfoMessage = FString::Printf(TEXT("Read Json Failed - %s"), *JsonString);
-		return nullptr;
-	}
-	bOutSuccess = true;
-	OutInfoMessage = FString::Printf(TEXT("Read Json Succeeded - %s"), *JsonFilePath);
-	return JsonObject;
-}
-
-void AExploreAlgorithm::WriteJson(FString JsonFilePath, TSharedPtr<FJsonObject> JsonObject, bool& bOutSuccess, FString& OutInfoMessage)
-{
-	FString JsonString;
-
-	if (!FJsonSerializer::Serialize(JsonObject.ToSharedRef(), TJsonWriterFactory<>::Create(&JsonString,0)))
-	{
-		bOutSuccess = false;
-		OutInfoMessage = FString::Printf(TEXT("write json failed"));
-		return;
-	}
-	//write string to file\
-
-	JsonString.ReplaceInline(TEXT("\r\n"), TEXT("")); //puts it on the same line. 
-	JsonString.ReplaceInline(TEXT("\n"), TEXT(""));
-
-	WriteStringToFile(JsonFilePath, JsonString, bOutSuccess, OutInfoMessage);
-	if (!bOutSuccess)
-	{
-		return;
-	}
-	bOutSuccess = true;
-	OutInfoMessage = FString::Printf(TEXT("Write Json Succeeded -%s"), *JsonFilePath);
-}
-
-FTestStruct AExploreAlgorithm::ReadStructFromJson(FString JsonFilePath, bool& bOutSuccess, FString& OutInfoMessage)
-{
-	TSharedPtr<FJsonObject>JsonObject = ReadJson(JsonFilePath, bOutSuccess, OutInfoMessage);
-	if (!bOutSuccess)
-	{
-		return FTestStruct();
-	}
-	
-	FTestStruct FirstTest;
-	if (!FJsonObjectConverter::JsonObjectToUStruct<FTestStruct>(JsonObject.ToSharedRef(), &FirstTest))
-	{
-		bOutSuccess = false;
-		OutInfoMessage = FString::Printf(TEXT("Read struct Json Failed - %s"), *JsonFilePath);
-		return FTestStruct();
-	}
-
-	bOutSuccess = true;
-	OutInfoMessage = FString::Printf(TEXT("Read struct Json succeeded - %s"), *JsonFilePath);
-	return FirstTest;
-}
-
-void AExploreAlgorithm::WriteStructToJsonFile(FString JsonFilePath, FTestStruct Struct, bool& bOutSuccess, FString& OutInfoMessage)
-{
-	TSharedPtr<FJsonObject> JsonObject = FJsonObjectConverter::UStructToJsonObject(Struct);
-	if (JsonObject == nullptr)
-	{
-		bOutSuccess = false;
-		OutInfoMessage = FString::Printf(TEXT("big yikes failed to write struct"));
-		return;
-	}
-	WriteJson(JsonFilePath, JsonObject, bOutSuccess, OutInfoMessage);
-}
-
-void AExploreAlgorithm::T()
-{
-	FString M = FPaths::ProjectContentDir(); //same thing as above delete later
-	M.Append(TEXT("DataAnalysis/TestJson.json")); //change this out to whatever csv file you are using for the data. 
-
-	FTestStruct F;
-	F.MyString = "yay";
-	bool b;
-	FString t = "";
-
-	WriteStructToJsonFile(M, F, b, t);
-	UE_LOG(LogTemp, Warning, TEXT("T worked"));
-
-}
 
 // Called when the game starts or when spawned
 void AExploreAlgorithm::BeginPlay()
@@ -706,7 +608,6 @@ void AExploreAlgorithm::BeginPlay()
 
 	Directions.Add(FVector(1, 0, 0));
 
-	T();
 
 	NavMeshSeeding(numSeeds);
 	FVector CurrLoc = TestCharacter->GetActorLocation();
